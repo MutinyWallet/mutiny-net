@@ -1,0 +1,28 @@
+version: "3.7"
+
+services:
+  bitcoind:
+    container_name: "bitcoind"
+    image: bitcoin-signet
+    user: 0:1000
+    restart: on-failure
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/.bitcoin:/root/.bitcoin
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      UACOMMENT: $UACOMMENT
+      BLOCKPRODUCTIONDELAY: $BLOCKPRODUCTIONDELAY
+      NBITS: $NBITS
+      RPCPASSWORD: $RPCPASSWORD
+      PRIVKEY: $PRIVKEY
+      SIGNETCHALLENGE: $SIGNETCHALLENGE
+      EXTERNAL_IP: $EXTERNAL_IP
+    ports:
+      - "28332:28332"
+      - "28333:28333"
+      - "28334:28334"
+      - "38332:38332"
+      - "38333:38333"
+      - "38334:38334"
