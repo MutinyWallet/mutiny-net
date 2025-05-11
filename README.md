@@ -24,6 +24,9 @@ Most of these just pull the released docker images from dockerhub, but there are
   time there was no way to change the interval in the project, now there is but is has worked so far so I have not
   updated it.
 
+Versions prior to 29.0 were using BDB wallet, system will automatically update your wallet to new descriptor format.
+`PRIVKEY` prior to 29.0 was a WIF, now is descriptor on new wallets. 
+
 ## Running
 
 To run the deployment, you need to have docker and docker-compose installed. Then you can run:
