@@ -228,6 +228,33 @@ services:
       - ~/volumes/lnurl:/root/.lnurl
     ports:
       - "3002:3002"
+  spark:
+    container_name: "spark"
+    build:
+      context: ./spark
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    depends_on:
+      - bitcoind
+      - postgres
+    ports:
+      - "9736:9735"  # Lightning port (offset to avoid conflict with lnd)
+      - "10010:10009" # gRPC port (offset to avoid conflict with lnd)
+    environment:
+      - DATABASE_URL=postgres://lightning-rgs:docker@postgres:5432/spark_db?sslmode=disable
+      - RPCPASSWORD=$RPCPASSWORD
+    volumes:
+      - ~/volumes/spark:/home/spark
+      - ./spark-config.yaml:/config/so_config.yaml:ro
+      - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
+    entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:10009"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
   web:
     container_name: "mempool_frontend"
     environment:

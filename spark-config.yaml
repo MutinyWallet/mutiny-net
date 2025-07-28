@@ -1,0 +1,61 @@
+dkg:
+  min_available_keys: 1  # Single node deployment
+  threshold: 1           # Only need 1 signature
+
+bitcoind:
+  signet:
+    network: signet
+    host: bitcoind:38332
+    rpcuser: bitcoin
+    rpcpassword: ${RPCPASSWORD}
+    zmqpubrawblock: tcp://bitcoind:28332
+
+token:
+  disconnect_lrc20_node: true
+
+database:
+  pool_min_conns: 4
+  pool_max_conns: 32
+  pool_max_conn_lifetime: 5m
+  pool_max_conn_idle_time: 30s
+  pool_health_check_period: 15s
+  url: postgres://lightning-rgs:docker@postgres:5432/spark_db?sslmode=disable
+
+# Single node configuration - only one operator
+operators:
+  - address: "0.0.0.0:10009"
+    external_address: "spark:10009"
+    identity_public_key: "0322ca18fc489ae25418a0e768273c2c61cabb823edfb14feb891e9bec62016510"
+
+# Frost signer configuration
+frost:
+  signer_socket: "unix:///tmp/frost_0.sock"
+
+lrc20:
+  signet:
+    disablerpcs: true
+    disablel1: true
+    network: signet
+    host: 127.0.0.1:18530
+    withdrawbondsats: 10000
+    withdrawrelativeblocklocktime: 1000
+    grpcpagesize: 200
+    grpcpoolsize: 10
+
+service_authz:
+  mode: 1 # AuthzModeDisabled
+  ip_allowlist: []
+
+xff_client_ip_position: 0
+return_detailed_errors: true
+return_detailed_panic_errors: true
+
+tracing:
+  enabled: false
+  otel_collector_endpoint: ""
+  otel_collector_cert_path: ""
+  global_sampling_rate: 0
+  span_sampling_config:
+    per_span_sampling_rates: {}
+    allow_list: []
+    block_list: []
