@@ -49,8 +49,12 @@ run_migrations() {
 
 # Function to start frost signer
 start_frost_signer() {
+    local index=${SPARK_INDEX:-0}
+    local signer_socket="/tmp/frost_${index}.sock"
+    
     echo "Starting Frost signer..."
-    spark-frost-signer -u /tmp/frost_0.sock &
+    echo "Signer socket: $signer_socket"
+    spark-frost-signer -u $signer_socket &
     SIGNER_PID=$!
     echo "Frost signer started with PID: $SIGNER_PID"
     
@@ -66,9 +70,10 @@ start_frost_signer() {
 
 # Function to create identity key and operators config
 create_identity_and_config() {
-    local key_file="/home/spark/operator_0.key"
+    local index=${SPARK_INDEX:-0}
+    local key_file="/home/spark/operator_${index}.key"
     local operators_file="/home/spark/operators.json"
-    local keypair_file="/home/spark/keypair.txt"
+    local keypair_file="/home/spark/keypair_${index}.txt"
     
     if [ ! -f "$keypair_file" ]; then
         echo "Generating new secp256k1 key pair..."
@@ -110,15 +115,49 @@ create_identity_and_config() {
     chmod 600 "$key_file"
     
     echo "Creating operators configuration..."
-    cat > "$operators_file" << EOF
+    if [ "$index" = "0" ]; then
+        # Generate second operator's key for the JSON (using a different seed)
+        local public_key_2=$(python3 /usr/local/bin/keygen.py | grep "PUBLIC:" | cut -d: -f2)
+        cat > "$operators_file" << EOF
 [
   {
+    "id": 0,
     "address": "0.0.0.0:10009",
     "external_address": "spark:10009",
+    "address_dkg": "spark:10009",
+    "identity_public_key": "$public_key"
+  },
+  {
+    "id": 1,
+    "address": "0.0.0.0:10010",
+    "external_address": "spark2:10010", 
+    "address_dkg": "spark2:10010",
+    "identity_public_key": "$public_key_2"
+  }
+]
+EOF
+    else
+        # For operator 1, create the same operators.json with both operators
+        # But we need to read operator 0's public key from shared config
+        cat > "$operators_file" << EOF
+[
+  {
+    "id": 0,
+    "address": "0.0.0.0:10009",
+    "external_address": "spark:10009",
+    "address_dkg": "spark:10009", 
+    "identity_public_key": "0322ca18fc489ae25418a0e768273c2c61cabb823edfb14feb891e9bec62016510"
+  },
+  {
+    "id": 1,
+    "address": "0.0.0.0:10010", 
+    "external_address": "spark2:10010",
+    "address_dkg": "spark2:10010",
     "identity_public_key": "$public_key"
   }
 ]
 EOF
+    fi
     echo "Operators config created"
 }
 
@@ -134,23 +173,31 @@ create_final_config() {
 
 # Function to start spark operator
 start_spark_operator() {
+    local index=${SPARK_INDEX:-0}
+    local port=$((10009 + index))
+    local key_file="/home/spark/operator_${index}.key"
+    local signer_socket="unix:///tmp/frost_${index}.sock"
+    
     echo "Starting Spark operator..."
+    echo "Operator index: $index"
+    echo "Port: $port"
     echo "Database URL being passed: '$DATABASE_URL'"
     echo "Database URL starts with postgresql: $(echo "$DATABASE_URL" | grep -q "^postgresql" && echo "YES" || echo "NO")"
     echo "Config file database section:"
     grep -A 10 "database:" /home/spark/so_config.yaml
     
     echo "Starting with command:"
-    echo "spark-operator -config /home/spark/so_config.yaml -index 0 -port 10009 -database '$DATABASE_URL' -signer unix:///tmp/frost_0.sock -key /home/spark/operator_0.key -operators /home/spark/operators.json -supported-networks regtest -local -log-level debug"
+    echo "spark-operator -config /home/spark/so_config.yaml -index $index -port $port -database '$DATABASE_URL' -signer $signer_socket -key $key_file -operators /home/spark/operators.json -threshold 2 -supported-networks regtest -local -log-level debug"
     
     exec spark-operator \
         -config /home/spark/so_config.yaml \
-        -index 0 \
-        -port 10009 \
+        -index $index \
+        -port $port \
         -database "$DATABASE_URL" \
-        -signer unix:///tmp/frost_0.sock \
-        -key /home/spark/operator_0.key \
+        -signer $signer_socket \
+        -key $key_file \
         -operators /home/spark/operators.json \
+        -threshold 2 \
         -supported-networks regtest \
         -local \
         -log-level debug
