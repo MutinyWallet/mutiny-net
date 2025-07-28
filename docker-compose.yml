@@ -149,7 +149,7 @@ services:
       - "50001:50001"
   nutshell:
     container_name: "nutshell"
-    image: 'cashubtc/nutshell:0.16.5'
+    image: 'cashubtc/nutshell:0.17.1'
     logging: *default-logging
     restart: always
     stop_grace_period: 1m
