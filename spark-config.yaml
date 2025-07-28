@@ -3,8 +3,8 @@ dkg:
   threshold: 1           # Only need 1 signature
 
 bitcoind:
-  signet:
-    network: signet
+  regtest:
+    network: regtest
     host: bitcoind:38332
     rpcuser: bitcoin
     rpcpassword: ${RPCPASSWORD}
@@ -14,12 +14,12 @@ token:
   disconnect_lrc20_node: true
 
 database:
+  url: $DATABASE_URL
   pool_min_conns: 4
   pool_max_conns: 32
   pool_max_conn_lifetime: 5m
   pool_max_conn_idle_time: 30s
   pool_health_check_period: 15s
-  url: postgres://lightning-rgs:docker@postgres:5432/spark_db?sslmode=disable
 
 # Single node configuration - only one operator
 operators:
@@ -32,10 +32,10 @@ frost:
   signer_socket: "unix:///tmp/frost_0.sock"
 
 lrc20:
-  signet:
+  regtest:
     disablerpcs: true
     disablel1: true
-    network: signet
+    network: regtest
     host: 127.0.0.1:18530
     withdrawbondsats: 10000
     withdrawrelativeblocklocktime: 1000

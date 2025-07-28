@@ -243,12 +243,13 @@ services:
       - "9736:9735"  # Lightning port (offset to avoid conflict with lnd)
       - "10010:10009" # gRPC port (offset to avoid conflict with lnd)
     environment:
-      - DATABASE_URL=postgres://lightning-rgs:docker@postgres:5432/spark_db?sslmode=disable
+      - DATABASE_URL=postgresql://lightning-rgs:docker@postgres:5432/sparkoperator_0?sslmode=disable
       - RPCPASSWORD=$RPCPASSWORD
     volumes:
       - ~/volumes/spark:/home/spark
       - ./spark-config.yaml:/config/so_config.yaml:ro
       - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
+      - ./keygen.py:/usr/local/bin/keygen.py:ro
     entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
     healthcheck:
       test: ["CMD", "grpc_health_probe", "-addr=localhost:10009"]
