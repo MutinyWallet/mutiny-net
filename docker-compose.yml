@@ -146,10 +146,10 @@ services:
       - ~/volumes/electrs:/root/.electrs
     ports:
       - "3003:3003"
-      - "50001:50001"
+      - "0.0.0.0:50001:50001"
   nutshell:
     container_name: "nutshell"
-    image: 'cashubtc/nutshell:0.16.5'
+    image: 'cashubtc/nutshell:0.17.1'
     logging: *default-logging
     restart: always
     stop_grace_period: 1m
@@ -170,7 +170,7 @@ services:
       - ~/volumes/nutshell:/root/.cashu
   faucet:
     container_name: "faucet"
-    image: ghcr.io/mutinywallet/mutinynet-faucet:master
+    image: ghcr.io/mutinywallet/mutinynet-faucet@sha256:d6875cae49c8b138a1a844eb1b92dd1d997374d7f15bd1d03ae1b95c0d6d80e8
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -228,6 +228,66 @@ services:
       - ~/volumes/lnurl:/root/.lnurl
     ports:
       - "3002:3002"
+  spark:
+    container_name: "spark"
+    build:
+      context: ./spark
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    depends_on:
+      - bitcoind
+      - postgres
+    ports:
+      - "9736:9735"  # Lightning port (offset to avoid conflict with lnd)
+      - "10010:10009" # gRPC port (offset to avoid conflict with lnd)
+    environment:
+      - DATABASE_URL=postgresql://lightning-rgs:docker@postgres:5432/sparkoperator_0?sslmode=disable
+      - RPCPASSWORD=$RPCPASSWORD
+      - SPARK_INDEX=0
+      - FROST_SIGNER_SOCKET=unix:///tmp/frost_0.sock
+    volumes:
+      - ~/volumes/spark:/home/spark
+      - ./spark-config.yaml:/config/so_config.yaml:ro
+      - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
+      - ./keygen.py:/usr/local/bin/keygen.py:ro
+    entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:10009"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  spark2:
+    container_name: "spark2"
+    build:
+      context: ./spark
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    depends_on:
+      - bitcoind
+      - postgres
+    ports:
+      - "9737:9735"  # Lightning port (offset to avoid conflict with spark1)
+      - "10011:10010" # gRPC port (offset to avoid conflict with spark1)
+    environment:
+      - DATABASE_URL=postgresql://lightning-rgs:docker@postgres:5432/sparkoperator_1?sslmode=disable
+      - RPCPASSWORD=$RPCPASSWORD
+      - SPARK_INDEX=1
+      - FROST_SIGNER_SOCKET=unix:///tmp/frost_1.sock
+    volumes:
+      - ~/volumes/spark2:/home/spark
+      - ./spark-config.yaml:/config/so_config.yaml:ro
+      - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
+      - ./keygen.py:/usr/local/bin/keygen.py:ro
+    entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:10010"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
   web:
     container_name: "mempool_frontend"
     environment:

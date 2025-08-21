@@ -1,0 +1,65 @@
+dkg:
+  min_available_keys: 1  # Two node deployment
+
+bitcoind:
+  regtest:
+    network: regtest
+    host: bitcoind:38332
+    rpcuser: bitcoin
+    rpcpassword: ${RPCPASSWORD}
+    zmqpubrawblock: tcp://bitcoind:28332
+
+token:
+  disconnect_lrc20_node: true
+
+database:
+  url: $DATABASE_URL
+  pool_min_conns: 4
+  pool_max_conns: 32
+  pool_max_conn_lifetime: 5m
+  pool_max_conn_idle_time: 30s
+  pool_health_check_period: 15s
+
+# Two operator configuration for DKG
+operators:
+  - address: "0.0.0.0:10009"
+    external_address: "spark:10009"
+    address_dkg: "spark:10009"
+    identity_public_key: "0322ca18fc489ae25418a0e768273c2c61cabb823edfb14feb891e9bec62016510"
+  - address: "0.0.0.0:10010"  
+    external_address: "spark2:10010"
+    address_dkg: "spark2:10010"
+    identity_public_key: "0322ca18fc489ae25418a0e768273c2c61cabb823edfb14feb891e9bec62016511"
+
+# Frost signer configuration (will be substituted by entrypoint)
+frost:
+  signer_socket: "${FROST_SIGNER_SOCKET}"
+
+lrc20:
+  regtest:
+    disablerpcs: true
+    disablel1: true
+    network: regtest
+    host: 127.0.0.1:18530
+    withdrawbondsats: 10000
+    withdrawrelativeblocklocktime: 1000
+    grpcpagesize: 200
+    grpcpoolsize: 10
+
+service_authz:
+  mode: 1 # AuthzModeDisabled
+  ip_allowlist: []
+
+xff_client_ip_position: 0
+return_detailed_errors: true
+return_detailed_panic_errors: true
+
+tracing:
+  enabled: false
+  otel_collector_endpoint: ""
+  otel_collector_cert_path: ""
+  global_sampling_rate: 0
+  span_sampling_config:
+    per_span_sampling_rates: {}
+    allow_list: []
+    block_list: []

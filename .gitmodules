@@ -5,3 +5,6 @@
 [submodule "rapid-gossip-sync-server"]
 	path = rapid-gossip-sync-server
 	url = https://github.com/lightningdevkit/rapid-gossip-sync-server.git
+[submodule "spark"]
+	path = spark
+	url = https://github.com/buildonspark/spark.git
