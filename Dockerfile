@@ -1,4 +1,4 @@
-FROM debian:buster-slim as builder
+FROM debian:bullseye-slim as builder
 
 ARG BITCOIN_VERSION="d4a86277ed8a"
 ARG TRIPLET=${TRIPLET:-"x86_64-linux-gnu"}
@@ -13,7 +13,7 @@ RUN BITCOIN_URL="https://github.com/benthecarman/bitcoin/releases/download/pairc
      wget -qO "${BITCOIN_FILE}" "${BITCOIN_URL}" && \
      mkdir -p bin && \
      tar -xzvf "${BITCOIN_FILE}" -C /tmp/bin --strip-components=2 "bitcoin-${BITCOIN_VERSION}/bin/bitcoin-cli" "bitcoin-${BITCOIN_VERSION}/bin/bitcoind" "bitcoin-${BITCOIN_VERSION}/bin/bitcoin-wallet" "bitcoin-${BITCOIN_VERSION}/bin/bitcoin-util"
-FROM debian:buster-slim as custom-signet-bitcoin
+FROM debian:bullseye-slim as custom-signet-bitcoin
 
 LABEL org.opencontainers.image.authors="NBD"
 LABEL org.opencontainers.image.licenses=MIT
