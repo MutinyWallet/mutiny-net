@@ -147,6 +147,40 @@ services:
     ports:
       - "3003:3003"
       - "0.0.0.0:50001:50001"
+
+  # Need a separate lnd instance for Cashu so the faucet can pay it/out
+  cashu-lnd:
+    container_name: "cashu-lnd"
+    image: lightninglabs/lnd:v0.19.3-beta
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 10m
+    environment:
+      RPCPASSWORD: $RPCPASSWORD
+    command: [
+      "--bitcoin.active",
+      "--bitcoin.signet",
+      "--bitcoin.node=bitcoind",
+      "--bitcoind.rpchost=bitcoind:38332",
+      "--bitcoind.rpcuser=bitcoin",
+      "--bitcoind.rpcpass=$RPCPASSWORD",
+      "--bitcoind.zmqpubrawblock=tcp://bitcoind:28332",
+      "--bitcoind.zmqpubrawtx=tcp://bitcoind:28333",
+      "--db.bolt.auto-compact",
+      "--db.prune-revocation",
+      "--alias=Cashu LND",
+      "--tlsextradomain=lnd",
+      "--protocol.option-scid-alias",
+      "--protocol.wumbo-channels",
+      "--accept-keysend",
+      "--minchansize=25000",
+      "--noseedbackup",
+      "--gc-canceled-invoices-on-startup",
+      "--coin-selection-strategy=random",
+    ]
+    volumes:
+      - ~/volumes/.cashu-lnd:/root/.lnd
   nutshell:
     container_name: "nutshell"
     image: 'cashubtc/nutshell:0.17.1'
@@ -161,12 +195,12 @@ services:
       MINT_LISTEN_HOST: "0.0.0.0"
       MINT_LISTEN_PORT: "3338"
       MINT_PRIVATE_KEY: $MINT_PRIVATE_KEY
-      MINT_LND_REST_ENDPOINT: "https://lnd:8081"
+      MINT_LND_REST_ENDPOINT: "https://cashu-lnd:8080"
       MINT_LND_REST_CERT: "/root/.lnd/tls.cert"
       MINT_LND_REST_MACAROON: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
     command: [ "poetry", "run", "mint" ]
     volumes:
-      - ~/volumes/.lnd:/root/.lnd:ro
+      - ~/volumes/.cashu-lnd:/root/.lnd:ro
       - ~/volumes/nutshell:/root/.cashu
   faucet:
     container_name: "faucet"
