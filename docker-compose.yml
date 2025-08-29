@@ -56,7 +56,7 @@ services:
       "--db.bolt.auto-compact",
       "--db.prune-revocation",
       "--alias=Faucet LND",
-      "--externalip=mutinynet.com",
+      "--externalip=45.79.52.207",
       "--externalip=gfg7fwat27mnsmlog7wbgi6a53f2b5rj56bwokcfk45bacnb4z5kt5ad.onion",
       "--tlsextradomain=mutinynet.com",
       "--tlsextradomain=lnd",
