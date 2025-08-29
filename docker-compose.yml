@@ -34,7 +34,7 @@ services:
       - "38334:38334"
   lnd:
     container_name: "lnd"
-    image: lightninglabs/lnd:v0.18.5-beta
+    image: lightninglabs/lnd:v0.19.3-beta
     user: "0:1000"
     logging: *default-logging
     restart: always
