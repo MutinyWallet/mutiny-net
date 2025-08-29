@@ -173,10 +173,11 @@ services:
       "--bitcoind.rpcpass=$RPCPASSWORD",
       "--bitcoind.zmqpubrawblock=tcp://bitcoind:28332",
       "--bitcoind.zmqpubrawtx=tcp://bitcoind:28333",
+      "--restlisten=0.0.0.0:8082",
       "--db.bolt.auto-compact",
       "--db.prune-revocation",
       "--alias=Cashu LND",
-      "--tlsextradomain=lnd",
+      "--tlsextradomain=cashu-lnd",
       "--protocol.option-scid-alias",
       "--protocol.wumbo-channels",
       "--accept-keysend",
@@ -191,6 +192,8 @@ services:
       "--protocol.simple-taproot-chans",
       "--protocol.rbf-coop-close",
     ]
+    ports:
+      - "8082:8082"
     volumes:
       - ~/volumes/.cashu-lnd:/root/.lnd
   nutshell:
@@ -207,7 +210,7 @@ services:
       MINT_LISTEN_HOST: "0.0.0.0"
       MINT_LISTEN_PORT: "3338"
       MINT_PRIVATE_KEY: $MINT_PRIVATE_KEY
-      MINT_LND_REST_ENDPOINT: "https://cashu-lnd:8080"
+      MINT_LND_REST_ENDPOINT: "https://cashu-lnd:8082"
       MINT_LND_REST_CERT: "/root/.lnd/tls.cert"
       MINT_LND_REST_MACAROON: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
     command: [ "poetry", "run", "mint" ]
