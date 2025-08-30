@@ -27,6 +27,7 @@ if [[ "$MINERENABLED" == "1" && ("$SIGNETCHALLENGE" == "" || "$PRIVKEY" == "") ]
     server=1
     rpcauth=bitcoin:c8c8b9740a470454255b7a38d4f38a52\$e8530d1c739a3bb0ec6e9513290def11651afbfd2b979f38c16ec2cf76cf348a
     rpcuser=bitcoin
+    deprecatedrpc=create_bdb
     rpcpassword=bitcoin
     " >$DATADIR/bitcoin.conf
     #start daemon

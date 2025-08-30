@@ -42,6 +42,7 @@ zmqpubhashblock=$ZMQPUBHASHBLOCK
 rpcbind=$RPCBIND
 rpcallowip=$RPCALLOWIP
 whitelist=$WHITELIST
+deprecatedrpc=create_bdb
 fallbackfee=0.0002"
 
 if [[ "$ADDNODE" != "" ]]; then
