@@ -1,7 +1,7 @@
 #!/bin/bash
 set -Eeuo pipefail
 # Define mining constants
-CLI="bitcoin-cli -datadir=${BITCOIN_DIR}" 
+CLI="bitcoin-cli -datadir=${BITCOIN_DIR} -rpcwallet=custom_signet"
 GRIND="bitcoin-util grind"
 
 NBITS=${NBITS:-"1e0377ae"} #minimum difficulty in signet
@@ -27,6 +27,6 @@ while true; do
         fi
     fi
     #echo "Mine To:" $ADDR --addr=$ADDR 
-    miner --cli="bitcoin-cli" generate --grind-cmd="bitcoin-util grind" --addr=$ADDR --nbits=$NBITS  --set-block-time=$(date +%s) || true
+    miner --cli="$CLI" generate --grind-cmd="$GRIND" --addr=$ADDR --nbits=$NBITS  --set-block-time=$(date +%s) || true
 
 done
