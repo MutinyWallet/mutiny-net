@@ -13,7 +13,7 @@ while true; do
     if [[ -f "${BITCOIN_DIR}/MINE_ADDRESS.txt" ]]; then
         ADDR=$(cat ~/.bitcoin/MINE_ADDRESS.txt)
     else
-        ADDR=${MINETO:-$(bitcoin-cli getnewaddress)}
+        ADDR=${MINETO:-$(bitcoin-cli -rpcwallet=custom_signet getnewaddress)}
     fi
     if [[ -f "${BITCOIN_DIR}/BLOCKPRODUCTIONDELAY.txt" ]]; then
         BLOCKPRODUCTIONDELAY_OVERRIDE=$(cat ~/.bitcoin/BLOCKPRODUCTIONDELAY.txt)

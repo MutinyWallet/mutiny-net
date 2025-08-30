@@ -130,9 +130,7 @@ def generate_psbt(tmpl, reward_spk, *, blocktime=None, poolid=None):
     psbt.g = PSBTMap( {PSBT_GLOBAL_UNSIGNED_TX: signme.serialize(),
                        PSBT_SIGNET_BLOCK: block.serialize()
                      } )
-    psbt.i = [ PSBTMap( {PSBT_IN_NON_WITNESS_UTXO: spendme.serialize(),
-                         PSBT_IN_SIGHASH_TYPE: bytes([1,0,0,0])})
-             ]
+    psbt.i = [ PSBTMap( {PSBT_IN_NON_WITNESS_UTXO: spendme.serialize()})]
     psbt.o = [ PSBTMap() ]
     return psbt.to_base64()
 

@@ -24,7 +24,7 @@ EOF
 )
 # Step 5: Import descriptor into wallet
 echo "Importing descriptor for signet multisig(1 of 1)..."
-bitcoin-cli importdescriptors "$IMPORT_JSON"
+bitcoin-cli -rpcwallet=custom_signet importdescriptors "$IMPORT_JSON"
 
 
 BASE_DESC="combo($WIF_PRIVKEY)"
@@ -43,4 +43,4 @@ EOF
 )
 # Step 5: Import descriptor into wallet
 echo "Importing descriptor for signet combo()..."
-bitcoin-cli importdescriptors "$IMPORT_JSON"
+bitcoin-cli -rpcwallet=custom_signet importdescriptors "$IMPORT_JSON"
