@@ -27,6 +27,6 @@ while true; do
         fi
     fi
     #echo "Mine To:" $ADDR --addr=$ADDR 
-    miner --cli="$CLI" generate --grind-cmd="$GRIND" --addr=$ADDR --nbits=$NBITS  --set-block-time=$(date +%s) || true
+    miner --debug --cli="$CLI" generate --grind-cmd="$GRIND" --addr=$ADDR --nbits=$NBITS  --set-block-time=$(date +%s) || true
 
 done
