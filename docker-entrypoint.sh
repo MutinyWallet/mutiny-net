@@ -27,7 +27,7 @@ else
 fi
     
 $@ &
-echo "Infinate loop"
+echo "Infinite loop"
 while true
 do
   tail -f /dev/null & wait ${!}
