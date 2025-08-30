@@ -1,7 +1,7 @@
 #!/bin/bash
 set -Eeuo pipefail
 # Define mining constants
-CLI="bitcoin-cli -datadir=${BITCOIN_DIR}" 
+CLI="bitcoin-cli -datadir=${BITCOIN_DIR} -rpcwallet=custom_signet"
 GRIND="bitcoin-util grind"
 
 NBITS=${NBITS:-"1e0377ae"} #minimum difficulty in signet
@@ -9,7 +9,7 @@ NBITS=${NBITS:-"1e0377ae"} #minimum difficulty in signet
 echo "Waiting until Chain tip age is < $CHAIN_TIP_AGE seconds before mining start..."
 wait_chain_sync.sh $CHAIN_TIP_AGE
 while true; do
-    ADDR=${MINETO:-$(bitcoin-cli getnewaddress)}
+    ADDR=${MINETO:-$(bitcoin-cli -rpcwallet=custom_signet getnewaddress)}
     echo "Mining to address:" $ADDR
     if [[ -f "${BITCOIN_DIR}/BLOCKPRODUCTIONDELAY.txt" ]]; then
         BLOCKPRODUCTIONDELAY_OVERRIDE=$(cat ~/.bitcoin/BLOCKPRODUCTIONDELAY.txt)
@@ -23,7 +23,7 @@ while true; do
         fi
     fi
     #echo "Mine To:" $ADDR --addr=$ADDR 
-    miner --cli="bitcoin-cli" generate --grind-cmd="bitcoin-util grind" --addr=$ADDR --nbits=$NBITS  --set-block-time=$(date +%s) || true
+    miner --cli="$CLI" generate --grind-cmd="$GRIND" --addr=$ADDR --nbits=$NBITS  --set-block-time=$(date +%s) || true
 
 done
 
