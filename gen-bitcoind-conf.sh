@@ -43,6 +43,8 @@ rpcbind=$RPCBIND
 rpcallowip=$RPCALLOWIP
 whitelist=$WHITELIST
 fallbackfee=0.0002"
+minrelaytxfee=0.00000100
+datacarriersize=100000
 
 if [[ "$ADDNODE" != "" ]]; then
     echo $ADDNODE | tr ',' '\n' | while read node; do
