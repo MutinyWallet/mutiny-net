@@ -19,6 +19,7 @@ services:
       - ~/volumes/.bitcoin:/root/.bitcoin
     environment:
       UACOMMENT: $UACOMMENT
+      PRIVKEY_MODE: "legacy"
       BLOCKPRODUCTIONDELAY: $BLOCKPRODUCTIONDELAY
       NBITS: $NBITS
       RPCPASSWORD: $RPCPASSWORD
