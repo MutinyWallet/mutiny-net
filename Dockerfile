@@ -1,6 +1,6 @@
 FROM debian:bullseye-slim as builder
 
-ARG BITCOIN_VERSION="d4a86277ed8a"
+ARG BITCOIN_VERSION="38351585048e"
 ARG TARGETARCH
 ARG TRIPLET
 
@@ -20,7 +20,7 @@ RUN if [ -z "$TRIPLET" ]; then \
      fi; \
      fi; \
      echo "Using TRIPLET=$TRIPLET" && \
-     BITCOIN_URL="https://github.com/benthecarman/bitcoin/releases/download/paircommit/bitcoin-${BITCOIN_VERSION}-${TRIPLET}.tar.gz" && \
+     BITCOIN_URL="https://github.com/benthecarman/bitcoin/releases/download/mutinynet-inq-29/bitcoin-${BITCOIN_VERSION}-${TRIPLET}.tar.gz" && \
      BITCOIN_FILE="bitcoin-${BITCOIN_VERSION}-${TRIPLET}.tar.gz" && \
      wget -qO "${BITCOIN_FILE}" "${BITCOIN_URL}" && \
      mkdir -p bin && \
