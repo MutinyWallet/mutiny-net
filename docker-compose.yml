@@ -155,6 +155,35 @@ services:
       - "3003:3003"
       - "0.0.0.0:50001:50001"
 
+  mempool_electrs:
+    container_name: "mempool_electrs"
+    image: mempool/electrs:v3.2.0
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    entrypoint:
+      /bin/electrs
+    command: |
+      -vvvv
+      --address-search
+      --cookie bitcoin:$RPCPASSWORD
+      --network signet
+      --daemon-rpc-addr bitcoind:38332
+      --blocks-dir /root/.bitcoin/signet/blocks
+      --timestamp
+      --jsonrpc-import
+      --db-dir /root/.electrs
+      --cors '*'
+      --electrum-rpc-addr 0.0.0.0:50001
+      --http-addr 0.0.0.0:3003
+    volumes:
+      - ~/volumes/.bitcoin:/root/.bitcoin:ro
+      - ~/volumes/mempool_electrs:/root/.electrs
+    ports:
+      - "3004:3003"
+      - "0.0.0.0:50052:50001"
+
   # Need a separate lnd instance for Cashu so the faucet can pay it/out
   cashu-lnd:
     container_name: "cashu-lnd"
