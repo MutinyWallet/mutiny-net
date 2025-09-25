@@ -428,7 +428,7 @@ services:
       MYSQL_USER: "mempool"
       MYSQL_PASSWORD: "mempool"
       MYSQL_ROOT_PASSWORD: "admin"
-    image: mariadb:10.5.8
+    image: mariadb:10.5.21
     logging: *default-logging
     user: "0:1000"
     restart: always
