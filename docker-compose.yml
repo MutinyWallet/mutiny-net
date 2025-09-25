@@ -177,6 +177,7 @@ services:
       --cors '*'
       --electrum-rpc-addr 0.0.0.0:50001
       --http-addr 0.0.0.0:3003
+      --electrum_banner "Welcome to the Mutinynet Electrum Server"
     volumes:
       - ~/volumes/.bitcoin:/root/.bitcoin:ro
       - ~/volumes/mempool_electrs:/root/.electrs
