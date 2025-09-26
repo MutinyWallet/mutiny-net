@@ -174,7 +174,6 @@ services:
       --timestamp
       --jsonrpc-import
       --db-dir /root/.electrs
-      --cors '*'
       --electrum-rpc-addr 0.0.0.0:50001
       --http-addr 0.0.0.0:3003
       --electrum-banner "Welcome to the Mutinynet Electrum Server"
