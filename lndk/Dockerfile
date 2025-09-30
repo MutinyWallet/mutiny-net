@@ -1,16 +1,16 @@
 #################
 # Builder image #
 #################
-FROM rust:1.78-bookworm AS builder
+FROM rust:1.85-bookworm AS builder
 
 # References for lndk
 ARG LNDK_SOURCE=https://github.com/lndk-org/lndk.git
-ARG LNDK_REF=60e17a0c94177f7d2d160aa08f5cc32a1274b51e
+ARG LNDK_REF=b50e09c338b429dbd1eb26395e051b62ae30d71f
 
 # Add utils
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-    protobuf-compiler \
+    protobuf-compiler build-essential libprotobuf-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -18,7 +18,7 @@ RUN apt-get update \
 WORKDIR /usr/src
 
 # Grab and install the latest version of lndk
-RUN git clone ${LNDK_SOURCE} . \
+RUN git clone --recurse-submodules ${LNDK_SOURCE} . \
     && git reset --hard ${LNDK_REF} \
     && cargo build --release
 
