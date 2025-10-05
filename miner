@@ -93,7 +93,7 @@ def finish_block(block, signet_solution, grind_cmd):
         block.rehash()
     return block
 
-def generate_psbt(tmpl, reward_spk, *, blocktime=None, poolid=None):
+def generate_psbt(tmpl, reward_spk, *, blocktime=None, poolid=None, nversion=None):
     signet_spk = tmpl["signet_challenge"]
     signet_spk_bin = bytes.fromhex(signet_spk)
 
@@ -109,7 +109,7 @@ def generate_psbt(tmpl, reward_spk, *, blocktime=None, poolid=None):
     cbtx.rehash()
 
     block = CBlock()
-    block.nVersion = tmpl["version"]
+    block.nVersion = tmpl["version"] if nversion is None else nversion
     block.hashPrevBlock = int(tmpl["previousblockhash"], 16)
     block.nTime = tmpl["curtime"] if blocktime is None else blocktime
     if block.nTime < tmpl["mintime"]:
@@ -174,7 +174,8 @@ def do_genpsbt(args):
     poolid = get_poolid(args)
     tmpl = json.load(sys.stdin)
     _, reward_spk = get_reward_addr_spk(args, tmpl["height"])
-    psbt = generate_psbt(tmpl, reward_spk, poolid=poolid)
+    nversion = None if args.nversion is None else int(args.nversion, 16)
+    psbt = generate_psbt(tmpl, reward_spk, poolid=poolid, nversion=nversion)
     print(psbt)
 
 def do_solvepsbt(args):
@@ -227,7 +228,7 @@ class Generate:
 
     def __init__(self, multiminer=None, ultimate_target=None, poisson=False, max_interval=1800,
                  standby_delay=0, backup_delay=0, set_block_time=None,
-                 poolid=None):
+                 poolid=None, nversion=None):
         if multiminer is None:
             multiminer = (0, 1, 1)
         (self.multi_low, self.multi_high, self.multi_period) = multiminer
@@ -238,6 +239,7 @@ class Generate:
         self.backup_delay = backup_delay
         self.set_block_time = set_block_time
         self.poolid = poolid
+        self.nversion = nversion
 
     def next_block_delta(self, last_nbits, last_hash):
         # strategy:
@@ -321,7 +323,7 @@ class Generate:
         return tmpl
 
     def mine(self, bcli, grind_cmd, tmpl, reward_spk):
-        psbt = generate_psbt(tmpl, reward_spk, blocktime=self.mine_time, poolid=self.poolid)
+        psbt = generate_psbt(tmpl, reward_spk, blocktime=self.mine_time, poolid=self.poolid, nversion=self.nversion)
         input_stream = os.linesep.join([psbt, "true", "ALL"]).encode('utf8')
         psbt_signed = json.loads(bcli("-stdin", "walletprocesspsbt", input=input_stream))
         if not psbt_signed.get("complete",False):
@@ -384,8 +386,10 @@ def do_generate(args):
 
     ultimate_target = nbits_to_target(int(args.nbits,16))
 
+    nversion = None if args.nversion is None else int(args.nversion, 16)
+
     gen = Generate(multiminer=my_blocks, ultimate_target=ultimate_target, poisson=args.poisson, max_interval=args.max_interval,
-                   standby_delay=args.standby_delay, backup_delay=args.backup_delay, set_block_time=args.set_block_time, poolid=poolid)
+                   standby_delay=args.standby_delay, backup_delay=args.backup_delay, set_block_time=args.set_block_time, poolid=poolid, nversion=nversion)
 
     mined_blocks = 0
     bestheader = {"hash": None}
@@ -542,6 +546,7 @@ def main():
         pool = sp.add_mutually_exclusive_group()
         pool.add_argument("--poolnum", default=None, type=int, help="Identify blocks that you mine")
         pool.add_argument("--poolid", default=None, type=str, help="Identify blocks that you mine (eg: /signet:1/)")
+        sp.add_argument("--nversion", default=None, type=str, help="Override block nVersion (specify as hex)")
 
     for sp in [solvepsbt, generate, calibrate]:
         sp.add_argument("--grind-cmd", default=None, type=str, required=(sp==calibrate), help="Command to grind a block header for proof-of-work")
