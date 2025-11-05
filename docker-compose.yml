@@ -229,7 +229,7 @@ services:
       - ~/volumes/.cashu-lnd:/root/.lnd
   nutshell:
     container_name: "nutshell"
-    image: 'cashubtc/nutshell:0.18.0'
+    image: 'cashubtc/nutshell:0.18.1'
     logging: *default-logging
     restart: always
     stop_grace_period: 1m
