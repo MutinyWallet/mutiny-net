@@ -6,6 +6,9 @@ GRIND="bitcoin-util grind"
 
 NBITS=${NBITS:-"1e0377ae"} #minimum difficulty in signet
 
+# UTXO consolidation interval
+CONSOLIDATE_INTERVAL=${CONSOLIDATE_INTERVAL:-10}
+
 echo "Waiting until Chain tip age is < $CHAIN_TIP_AGE seconds before mining start..."
 wait_chain_sync.sh $CHAIN_TIP_AGE
 
@@ -26,7 +29,14 @@ while true; do
             sleep $BLOCKPRODUCTIONDELAY
         fi
     fi
-    #echo "Mine To:" $ADDR --addr=$ADDR 
+    #echo "Mine To:" $ADDR --addr=$ADDR
     miner --debug --cli="$CLI" generate --grind-cmd="$GRIND" --addr=$ADDR --nbits=$NBITS  --set-block-time=$(date +%s) || true
+
+    # Check block count and consolidate UTXOs every N blocks
+    BLOCK_COUNT=$($CLI getblockcount)
+    if [ $((BLOCK_COUNT % CONSOLIDATE_INTERVAL)) -eq 0 ]; then
+        echo "Consolidating UTXOs at block $BLOCK_COUNT..."
+        ./consolidate_utxos.sh || echo "Warning: UTXO consolidation failed"
+    fi
 
 done
