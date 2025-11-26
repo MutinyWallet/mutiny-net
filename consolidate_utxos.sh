@@ -6,6 +6,12 @@ CLI="bitcoin-cli -datadir=${BITCOIN_DIR} -rpcwallet=custom_signet"
 
 echo "Starting UTXO consolidation..."
 
+if [[ -f "${BITCOIN_DIR}/MINE_ADDRESS.txt" ]]; then
+        ADDR=$(cat ~/.bitcoin/MINE_ADDRESS.txt)
+    else
+        ADDR=${MINETO:-$(bitcoin-cli -rpcwallet=custom_signet getnewaddress)}
+fi
+
 # Get wallet balance (excluding unconfirmed)
 BALANCE=$($CLI getbalance)
 
