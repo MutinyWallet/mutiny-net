@@ -36,7 +36,7 @@ while true; do
     BLOCK_COUNT=$($CLI getblockcount)
     if [ $((BLOCK_COUNT % CONSOLIDATE_INTERVAL)) -eq 0 ]; then
         echo "Consolidating UTXOs at block $BLOCK_COUNT..."
-        ./consolidate_utxos.sh || echo "Warning: UTXO consolidation failed"
+        consolidate_utxos.sh || echo "Warning: UTXO consolidation failed"
     fi
 
 done
