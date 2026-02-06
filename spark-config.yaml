@@ -4,10 +4,10 @@ dkg:
 bitcoind:
   regtest:
     network: regtest
-    host: bitcoind:38332
+    host: bitcoind-services:38332
     rpcuser: bitcoin
     rpcpassword: ${RPCPASSWORD}
-    zmqpubrawblock: tcp://bitcoind:28332
+    zmqpubrawblock: tcp://bitcoind-services:28332
 
 token:
   disconnect_lrc20_node: true

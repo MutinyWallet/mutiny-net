@@ -8,8 +8,9 @@ x-logging:
     max-file: "3"
 
 services:
-  bitcoind:
-    container_name: "bitcoind"
+  # Mining-only bitcoind instance
+  bitcoind-miner:
+    container_name: "bitcoind-miner"
     build: .
     user: "0:1000"
     logging: *default-logging
@@ -26,6 +27,8 @@ services:
       PRIVKEY: $PRIVKEY
       SIGNETCHALLENGE: $SIGNETCHALLENGE
       EXTERNAL_IP: $EXTERNAL_IP
+      MINERENABLED: "1"
+      ADDNODE: "bitcoind-services:38333"  # Connect to services node
     ports:
       - "28332:28332"
       - "28333:28333"
@@ -33,6 +36,33 @@ services:
       - "38332:38332"
       - "38333:38333"
       - "38334:38334"
+
+  # Services-only bitcoind instance (no mining)
+  bitcoind-services:
+    container_name: "bitcoind-services"
+    build: .
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/.bitcoin-services:/root/.bitcoin
+    environment:
+      UACOMMENT: $UACOMMENT
+      PRIVKEY_MODE: "legacy"
+      BLOCKPRODUCTIONDELAY: $BLOCKPRODUCTIONDELAY
+      RPCPASSWORD: $RPCPASSWORD
+      SIGNETCHALLENGE: $SIGNETCHALLENGE
+      EXTERNAL_IP: $EXTERNAL_IP
+      MINERENABLED: "0"  # Disable mining
+      ADDNODE: "bitcoind-miner:38333"  # Connect to miner node
+    ports:
+      - "28335:28332"  # ZMQ ports on alternate host ports
+      - "28336:28333"
+      - "28337:28334"
+      - "38335:38332"  # RPC on alternate port
+      - "38336:38333"  # P2P on alternate port
+      - "38337:38334"
   lnd:
     container_name: "lnd"
     image: lightninglabs/lnd:v0.20.0-beta
@@ -49,11 +79,11 @@ services:
       "--maxpendingchannels=10",
       "--rpclisten=0.0.0.0:10009",
       "--restlisten=0.0.0.0:8081",
-      "--bitcoind.rpchost=bitcoind:38332",
+      "--bitcoind.rpchost=bitcoind-services:38332",
       "--bitcoind.rpcuser=bitcoin",
       "--bitcoind.rpcpass=$RPCPASSWORD",
-      "--bitcoind.zmqpubrawblock=tcp://bitcoind:28332",
-      "--bitcoind.zmqpubrawtx=tcp://bitcoind:28333",
+      "--bitcoind.zmqpubrawblock=tcp://bitcoind-services:28332",
+      "--bitcoind.zmqpubrawtx=tcp://bitcoind-services:28333",
       "--db.bolt.auto-compact",
       "--db.prune-revocation",
       "--alias=Faucet LND",
@@ -110,7 +140,7 @@ services:
       - ~/volumes/rgs:/usr/src/app:cached
     links:
       - postgres
-      - bitcoind
+      - bitcoind-services
     depends_on:
       - postgres
     environment:
@@ -120,7 +150,7 @@ services:
       RAPID_GOSSIP_SYNC_SERVER_DB_NAME: ln_graph_sync
       RAPID_GOSSIP_SYNC_SERVER_NETWORK: signet
       RAPID_GOSSIP_SYNC_SERVER_SNAPSHOT_INTERVAL: 3600 # 1 hour
-      BITCOIN_REST_DOMAIN: bitcoind
+      BITCOIN_REST_DOMAIN: bitcoind-services
       BITCOIN_REST_PORT: 38332
       LN_PEERS: 02465ed5be53d04fde66c9418ff14a5f2267723810176c9212b722e542dc1afb1b@lnd:9735 # lnd's node id
     entrypoint: [ "rapid-gossip-sync-server" ]
@@ -170,7 +200,7 @@ services:
       --address-search
       --cookie bitcoin:$RPCPASSWORD
       --network signet
-      --daemon-rpc-addr bitcoind:38332
+      --daemon-rpc-addr bitcoind-services:38332
       --blocks-dir /root/.bitcoin/signet/blocks
       --timestamp
       --jsonrpc-import
@@ -179,7 +209,7 @@ services:
       --http-addr 0.0.0.0:3003
       --electrum-banner "Welcome to the Mutinynet Electrum Server"
     volumes:
-      - ~/volumes/.bitcoin:/root/.bitcoin:ro
+      - ~/volumes/.bitcoin-services:/root/.bitcoin:ro
       - ~/volumes/mempool_electrs:/root/.electrs
     ports:
       - "3003:3003"
@@ -199,11 +229,11 @@ services:
       "--bitcoin.active",
       "--bitcoin.signet",
       "--bitcoin.node=bitcoind",
-      "--bitcoind.rpchost=bitcoind:38332",
+      "--bitcoind.rpchost=bitcoind-services:38332",
       "--bitcoind.rpcuser=bitcoin",
       "--bitcoind.rpcpass=$RPCPASSWORD",
-      "--bitcoind.zmqpubrawblock=tcp://bitcoind:28332",
-      "--bitcoind.zmqpubrawtx=tcp://bitcoind:28333",
+      "--bitcoind.zmqpubrawblock=tcp://bitcoind-services:28332",
+      "--bitcoind.zmqpubrawtx=tcp://bitcoind-services:28333",
       "--restlisten=0.0.0.0:8082",
       "--db.bolt.auto-compact",
       "--db.prune-revocation",
@@ -264,7 +294,7 @@ services:
     image: ghcr.io/mutinywallet/mutinynet-faucet-rs:master
     environment:
       RUST_LOG: "info"
-      BITCOIN_RPC_HOST_AND_PORT: "bitcoind:38332"
+      BITCOIN_RPC_HOST_AND_PORT: "bitcoind-miner:38332"
       BITCOIN_RPC_USER: "bitcoin"
       BITCOIN_RPC_PASSWORD: $RPCPASSWORD
       NSEC: $NSEC
@@ -317,7 +347,7 @@ services:
 #    restart: always
 #    stop_grace_period: 1m
 #    depends_on:
-#      - bitcoind
+#      - bitcoind-services
 #      - postgres
 #    ports:
 #      - "9736:9735"  # Lightning port (offset to avoid conflict with lnd)
@@ -347,7 +377,7 @@ services:
 #    restart: always
 #    stop_grace_period: 1m
 #    depends_on:
-#      - bitcoind
+#      - bitcoind-services
 #      - postgres
 #    ports:
 #      - "9737:9735"  # Lightning port (offset to avoid conflict with spark1)
@@ -393,7 +423,7 @@ services:
       ELECTRUM_PORT: "50001"
       ELECTRUM_TLS_ENABLED: "false"
       ESPLORA_REST_API_URL: "http://electrs:3003"
-      CORE_RPC_HOST: "bitcoind"
+      CORE_RPC_HOST: "bitcoind-services"
       CORE_RPC_PORT: "38332"
       CORE_RPC_USERNAME: "bitcoin"
       CORE_RPC_PASSWORD: $RPCPASSWORD
