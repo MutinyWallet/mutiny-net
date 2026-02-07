@@ -280,7 +280,7 @@ services:
       - ~/volumes/nutshell:/root/.cashu
   faucet:
     container_name: "faucet"
-    image: ghcr.io/mutinywallet/mutinynet-faucet@sha256:d6875cae49c8b138a1a844eb1b92dd1d997374d7f15bd1d03ae1b95c0d6d80e8
+    image: ghcr.io/mutinywallet/mutinynet-faucet:master
     user: "0:1000"
     logging: *default-logging
     restart: always
