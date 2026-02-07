@@ -234,6 +234,7 @@ services:
       "--bitcoind.rpcpass=$RPCPASSWORD",
       "--bitcoind.zmqpubrawblock=tcp://bitcoind-services:28332",
       "--bitcoind.zmqpubrawtx=tcp://bitcoind-services:28333",
+      "--bitcoin.defaultchanconfs=6",
       "--restlisten=0.0.0.0:8082",
       "--db.bolt.auto-compact",
       "--db.prune-revocation",
