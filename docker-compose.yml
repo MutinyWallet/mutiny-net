@@ -84,6 +84,7 @@ services:
       "--bitcoind.rpcpass=$RPCPASSWORD",
       "--bitcoind.zmqpubrawblock=tcp://bitcoind-services:28332",
       "--bitcoind.zmqpubrawtx=tcp://bitcoind-services:28333",
+      "--bitcoin.defaultchanconfs=6",
       "--db.bolt.auto-compact",
       "--db.prune-revocation",
       "--alias=Faucet LND",
@@ -218,7 +219,7 @@ services:
   # Need a separate lnd instance for Cashu so the faucet can pay it/out
   cashu-lnd:
     container_name: "cashu-lnd"
-    image: lightninglabs/lnd:v0.19.3-beta
+    image: lightninglabs/lnd:v0.20.0-beta
     user: "0:1000"
     logging: *default-logging
     restart: always
