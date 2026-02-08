@@ -313,7 +313,7 @@ services:
       ADMIN_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
       REORG_ENABLED: "true"
       REORG_COOLDOWN_SECONDS: "3600"
-      REORG_DB_PATH: "/root/.faucet_backend/reorg.db"
+      REORG_DB_PATH: "/root/faucet_backend/reorg.db"
       MAINNET_GRPC_HOST: ${MAINNET_GRPC_HOST}
       MAINNET_GRPC_PORT: "10069"
       MAINNET_TLS_CERT_PATH: "/root/faucet_backend/tls.cert"
@@ -325,7 +325,7 @@ services:
     volumes:
       - ~/volumes/.lnd:/root/.lnd:ro
       - ./faucet_config:/app/faucet_config:ro
-      - ~/volumes/faucet_backend:/root/.faucet_backend
+      - ~/volumes/faucet_backend:/root/faucet_backend
     ports:
       - "3001:3001"
   lnurl_server:
