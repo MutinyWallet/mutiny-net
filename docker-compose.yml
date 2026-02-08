@@ -188,7 +188,7 @@ services:
 
   mempool_electrs:
     container_name: "mempool_electrs"
-    image: mempool/electrs:v3.2.0
+    image: mempool/electrs:v3.3.0
     user: "0:1000"
     logging: *default-logging
     restart: always
