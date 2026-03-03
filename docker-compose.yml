@@ -311,6 +311,8 @@ services:
       GRPC_HOST: "lnd"
       TLS_CERT_PATH: "/root/.lnd/tls.cert"
       ADMIN_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
+      L402_ENABLED: "true"
+      L402_INVOICE_AMOUNT: "50"
       REORG_ENABLED: "true"
       REORG_COOLDOWN_SECONDS: "3600"
       REORG_DB_PATH: "/root/faucet_backend/reorg.db"
