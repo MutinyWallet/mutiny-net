@@ -330,6 +330,22 @@ services:
       - ~/volumes/faucet_backend:/root/faucet_backend
     ports:
       - "3001:3001"
+  fortune_402:
+    container_name: "fortune_402"
+    image: ghcr.io/benthecarman/fortune-402:master
+    environment:
+      LND_ADDRESS: "https://lnd:10009"
+      LND_CERT_PATH: "/root/.lnd/tls.cert"
+      LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
+      INVOICE_AMOUNT_SATS: "100"
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/.lnd:/root/.lnd:ro
+    ports:
+      - "3402:3402"
   lnurl_server:
     container_name: "lnurl_server"
     image: ghcr.io/benthecarman/lnurl-server:master
