@@ -338,6 +338,7 @@ services:
       LND_CERT_PATH: "/root/.lnd/tls.cert"
       LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
       INVOICE_AMOUNT_SATS: "100"
+      L402_ROOT_KEY: $L402_ROOT_KEY
     user: "0:1000"
     logging: *default-logging
     restart: always
