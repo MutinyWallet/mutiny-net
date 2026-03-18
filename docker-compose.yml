@@ -317,6 +317,7 @@ services:
       REORG_ENABLED: "true"
       REORG_COOLDOWN_SECONDS: "3600"
       REORG_DB_PATH: "/root/faucet_backend/reorg.db"
+      ANALYTICS_DB_PATH: "/root/faucet_backend/analytics.db"
       MAINNET_GRPC_HOST: ${MAINNET_GRPC_HOST}
       MAINNET_GRPC_PORT: "10069"
       MAINNET_TLS_CERT_PATH: "/root/faucet_backend/tls.cert"
