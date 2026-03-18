@@ -496,3 +496,14 @@ services:
     stop_grace_period: 1m
     volumes:
       - ~/volumes/mysql/data:/var/lib/mysql
+  analytics:
+    container_name: "analytics"
+    image: ghcr.io/benthecarman/cf-mutinynet-traffic:latest
+    user: "0:1000"
+    restart: always
+    logging: *default-logging
+    stop_grace_period: 1m
+    ports:
+      - "8083:3000"
+    environment:
+      CF_TOKEN: $CF_TOKEN
