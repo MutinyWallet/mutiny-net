@@ -63,6 +63,9 @@ server {
 	}
 	location / {
 		proxy_pass http://127.0.0.1:8080;
+		proxy_set_header Accept-Encoding "";
+		sub_filter '</body>' '<div id="faucet-link" style="display:none;position:fixed;bottom:10px;right:10px;z-index:9999;"><a href="https://faucet.mutinynet.com" target="_blank" style="background:#1a9436;color:white;padding:8px 16px;border-radius:4px;text-decoration:none;font-family:sans-serif;">Faucet</a></div><script>if(location.pathname==="/")document.getElementById("faucet-link").style.display="block";</script></body>';
+		sub_filter_once on;
 	}
 
 
