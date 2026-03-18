@@ -32,6 +32,9 @@ while true; do
     #echo "Mine To:" $ADDR --addr=$ADDR
     miner --debug --cli="$CLI" generate --grind-cmd="$GRIND" --addr=$ADDR --nbits=$NBITS  --set-block-time=$(date +%s) || true
 
+    # Purge Cloudflare cache for tip height
+    purge-tip.sh 2>/dev/null &
+
     # Check block count and consolidate UTXOs every N blocks
     BLOCK_COUNT=$($CLI getblockcount)
     if [ $((BLOCK_COUNT % CONSOLIDATE_INTERVAL)) -eq 0 ]; then
