@@ -319,6 +319,8 @@ services:
       REORG_DB_PATH: "/root/faucet_backend/reorg.db"
       ANALYTICS_DB_PATH: "/root/faucet_backend/analytics.db"
       ANALYTICS_TOKEN: $ANALYTICS_TOKEN
+      USERS_DB_PATH: "/root/faucet_backend/users.db"
+      ADMIN_TOKEN: $ANALYTICS_TOKEN
       MAINNET_GRPC_HOST: ${MAINNET_GRPC_HOST}
       MAINNET_GRPC_PORT: "10069"
       MAINNET_TLS_CERT_PATH: "/root/faucet_backend/tls.cert"
@@ -511,3 +513,4 @@ services:
     environment:
       CF_TOKEN: $CF_TOKEN
       ANALYTICS_TOKEN: $ANALYTICS_TOKEN
+      ADMIN_TOKEN: $ANALYTICS_TOKEN
