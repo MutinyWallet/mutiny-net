@@ -172,21 +172,21 @@ services:
       POSTGRES_USER: lightning-rgs
       POSTGRES_PASSWORD: docker
       POSTGRES_DB: ln_graph_sync
-#  electrs:
-#    container_name: "electrs"
-#    build:
-#      context: ./electrs
-#    user: "0:1000"
-#    logging: *default-logging
-#    restart: always
-#    stop_grace_period: 1m
-#    environment:
-#      FLAGS: '-vvvv --signet-magic cb2ddfa5 --jsonrpc-import --daemon-dir /root/.bitcoin/signet --daemon-rpc-addr bitcoind:38332 --timestamp --blocks-dir /root/.bitcoin/signet/blocks --cookie=bitcoin:$RPCPASSWORD --db-dir /root/.electrs --network signet --electrum-rpc-addr 0.0.0.0:50001 --http-addr 0.0.0.0:3003'
-#    volumes:
-#      - ~/volumes/electrs:/root/.electrs
-#    ports:
-#      - "3003:3003"
-#      - "0.0.0.0:50001:50001"
+  #  electrs:
+  #    container_name: "electrs"
+  #    build:
+  #      context: ./electrs
+  #    user: "0:1000"
+  #    logging: *default-logging
+  #    restart: always
+  #    stop_grace_period: 1m
+  #    environment:
+  #      FLAGS: '-vvvv --signet-magic cb2ddfa5 --jsonrpc-import --daemon-dir /root/.bitcoin/signet --daemon-rpc-addr bitcoind:38332 --timestamp --blocks-dir /root/.bitcoin/signet/blocks --cookie=bitcoin:$RPCPASSWORD --db-dir /root/.electrs --network signet --electrum-rpc-addr 0.0.0.0:50001 --http-addr 0.0.0.0:3003'
+  #    volumes:
+  #      - ~/volumes/electrs:/root/.electrs
+  #    ports:
+  #      - "3003:3003"
+  #      - "0.0.0.0:50001:50001"
 
   mempool_electrs:
     container_name: "mempool_electrs"
@@ -374,66 +374,66 @@ services:
       - ~/volumes/lnurl:/root/.lnurl
     ports:
       - "3002:3002"
-#  spark:
-#    container_name: "spark"
-#    build:
-#      context: ./spark
-#    user: "0:1000"
-#    logging: *default-logging
-#    restart: always
-#    stop_grace_period: 1m
-#    depends_on:
-#      - bitcoind-services
-#      - postgres
-#    ports:
-#      - "9736:9735"  # Lightning port (offset to avoid conflict with lnd)
-#      - "10010:10009" # gRPC port (offset to avoid conflict with lnd)
-#    environment:
-#      - DATABASE_URL=postgresql://lightning-rgs:docker@postgres:5432/sparkoperator_0?sslmode=disable
-#      - RPCPASSWORD=$RPCPASSWORD
-#      - SPARK_INDEX=0
-#      - FROST_SIGNER_SOCKET=unix:///tmp/frost_0.sock
-#    volumes:
-#      - ~/volumes/spark:/home/spark
-#      - ./spark-config.yaml:/config/so_config.yaml:ro
-#      - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
-#      - ./keygen.py:/usr/local/bin/keygen.py:ro
-#    entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
-#    healthcheck:
-#      test: ["CMD", "grpc_health_probe", "-addr=localhost:10009"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#  spark2:
-#    container_name: "spark2"
-#    build:
-#      context: ./spark
-#    user: "0:1000"
-#    logging: *default-logging
-#    restart: always
-#    stop_grace_period: 1m
-#    depends_on:
-#      - bitcoind-services
-#      - postgres
-#    ports:
-#      - "9737:9735"  # Lightning port (offset to avoid conflict with spark1)
-#      - "10011:10010" # gRPC port (offset to avoid conflict with spark1)
-#    environment:
-#      - DATABASE_URL=postgresql://lightning-rgs:docker@postgres:5432/sparkoperator_1?sslmode=disable
-#      - RPCPASSWORD=$RPCPASSWORD
-#      - SPARK_INDEX=1
-#      - FROST_SIGNER_SOCKET=unix:///tmp/frost_1.sock
-#    volumes:
-#      - ~/volumes/spark2:/home/spark
-#      - ./spark-config.yaml:/config/so_config.yaml:ro
-#      - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
-#      - ./keygen.py:/usr/local/bin/keygen.py:ro
-#    entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
-#    healthcheck:
-#      test: ["CMD", "grpc_health_probe", "-addr=localhost:10010"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
+  #  spark:
+  #    container_name: "spark"
+  #    build:
+  #      context: ./spark
+  #    user: "0:1000"
+  #    logging: *default-logging
+  #    restart: always
+  #    stop_grace_period: 1m
+  #    depends_on:
+  #      - bitcoind-services
+  #      - postgres
+  #    ports:
+  #      - "9736:9735"  # Lightning port (offset to avoid conflict with lnd)
+  #      - "10010:10009" # gRPC port (offset to avoid conflict with lnd)
+  #    environment:
+  #      - DATABASE_URL=postgresql://lightning-rgs:docker@postgres:5432/sparkoperator_0?sslmode=disable
+  #      - RPCPASSWORD=$RPCPASSWORD
+  #      - SPARK_INDEX=0
+  #      - FROST_SIGNER_SOCKET=unix:///tmp/frost_0.sock
+  #    volumes:
+  #      - ~/volumes/spark:/home/spark
+  #      - ./spark-config.yaml:/config/so_config.yaml:ro
+  #      - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
+  #      - ./keygen.py:/usr/local/bin/keygen.py:ro
+  #    entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
+  #    healthcheck:
+  #      test: ["CMD", "grpc_health_probe", "-addr=localhost:10009"]
+  #      interval: 30s
+  #      timeout: 10s
+  #      retries: 3
+  #  spark2:
+  #    container_name: "spark2"
+  #    build:
+  #      context: ./spark
+  #    user: "0:1000"
+  #    logging: *default-logging
+  #    restart: always
+  #    stop_grace_period: 1m
+  #    depends_on:
+  #      - bitcoind-services
+  #      - postgres
+  #    ports:
+  #      - "9737:9735"  # Lightning port (offset to avoid conflict with spark1)
+  #      - "10011:10010" # gRPC port (offset to avoid conflict with spark1)
+  #    environment:
+  #      - DATABASE_URL=postgresql://lightning-rgs:docker@postgres:5432/sparkoperator_1?sslmode=disable
+  #      - RPCPASSWORD=$RPCPASSWORD
+  #      - SPARK_INDEX=1
+  #      - FROST_SIGNER_SOCKET=unix:///tmp/frost_1.sock
+  #    volumes:
+  #      - ~/volumes/spark2:/home/spark
+  #      - ./spark-config.yaml:/config/so_config.yaml:ro
+  #      - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
+  #      - ./keygen.py:/usr/local/bin/keygen.py:ro
+  #    entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
+  #    healthcheck:
+  #      test: ["CMD", "grpc_health_probe", "-addr=localhost:10010"]
+  #      interval: 30s
+  #      timeout: 10s
+  #      retries: 3
   web:
     container_name: "mempool_frontend"
     environment:
@@ -495,6 +495,18 @@ services:
       MYSQL_PASSWORD: "mempool"
       MYSQL_ROOT_PASSWORD: "admin"
     image: mariadb:10.5.21
+    command: >
+      --innodb-buffer-pool-size=512M
+      --innodb-log-file-size=256M
+      --innodb-flush-log-at-trx-commit=2
+      --innodb-flush-method=O_DIRECT
+      --innodb-io-capacity=1000
+      --max-connections=50
+      --wait-timeout=300
+      --interactive-timeout=300
+      --tmp-table-size=64M
+      --max-heap-table-size=64M
+      --key-buffer-size=32M
     logging: *default-logging
     user: "0:1000"
     restart: always
