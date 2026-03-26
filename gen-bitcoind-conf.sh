@@ -26,6 +26,14 @@ if [[ "$EXTERNAL_IP" != "" ]]; then
     done
 fi
 
+if [[ "$DBCACHE" != "" ]]; then
+echo "dbcache=$DBCACHE"
+fi
+
+if [[ "$MAXCONNECTIONS" != "" ]]; then
+echo "maxconnections=$MAXCONNECTIONS"
+fi
+
 echo "[signet]
 rest=1
 daemon=1
@@ -46,7 +54,11 @@ fallbackfee=0.0002
 minrelaytxfee=0.00000100
 datacarriersize=100000"
 
-if [[ "$ADDNODE" != "" ]]; then
+if [[ "$CONNECTNODE" != "" ]]; then
+    echo $CONNECTNODE | tr ',' '\n' | while read node; do
+        echo "connect=$node"
+    done
+elif [[ "$ADDNODE" != "" ]]; then
     echo $ADDNODE | tr ',' '\n' | while read node; do
         echo "addnode=$node"
     done

@@ -29,6 +29,8 @@ services:
       EXTERNAL_IP: $EXTERNAL_IP
       MINERENABLED: "1"
       ADDNODE: "bitcoind-services:38333"  # Connect to services node
+      DBCACHE: "100"
+      MAXCONNECTIONS: "10"
       CF_TOKEN: $CF_TOKEN
     ports:
       - "28332:28332"
@@ -57,6 +59,7 @@ services:
       EXTERNAL_IP: $EXTERNAL_IP
       MINERENABLED: "0"  # Disable mining
       ADDNODE: "bitcoind-miner:38333"  # Connect to miner node
+      DBCACHE: "150"
     ports:
       - "28335:28332"  # ZMQ ports on alternate host ports
       - "28336:28333"
