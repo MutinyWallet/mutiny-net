@@ -30,7 +30,6 @@ services:
       MINERENABLED: "1"
       ADDNODE: "bitcoind-services:38333"  # Connect to services node
       DBCACHE: "100"
-      MAXCONNECTIONS: "10"
       CF_TOKEN: $CF_TOKEN
     ports:
       - "28332:28332"
