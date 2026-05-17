@@ -54,6 +54,50 @@ alias lncli="docker exec -it lnd /bin/lncli -n signet"
 alias bitcoin-cli="docker exec -it bitcoind /usr/local/bin/bitcoin-cli"
 ```
 
+## Activating a soft fork
+
+Bitcoin Inquisition "heretical" deployments lock in as soon as **one** block in
+the current 432-block signet period is mined with `nVersion == signal_activate`.
+The next period it becomes active.
+
+`signal_activate = 0x60000000 | binana_id`, where
+`binana_id = ((year % 32) << 22) | (number << 8) | revision` from the
+deployment's `src/binana/*.json` entry. Use `calc_nversion.py` to compute it:
+
+```bash
+./calc_nversion.py 2026 1 0
+# or from the binana JSON itself:
+./calc_nversion.py path/to/bitcoin/src/binana/templatehash.json
+```
+
+For example, TEMPLATEHASH (BIP446, binana `[2026, 1, 0]`) gives `0x62800100`.
+
+The `miner` script inside `bitcoind-miner` already accepts `--nversion`, so we
+can mine one signalling block directly without modifying `mine.sh`. Signet
+blocks at min-difficulty solve fast enough to beat the next loop iteration:
+
+```bash
+docker exec bitcoind-miner sh -c '
+  miner --debug \
+        --cli="bitcoin-cli -datadir=/root/.bitcoin -rpcwallet=custom_signet" \
+        generate \
+        --grind-cmd="bitcoin-util grind" \
+        --addr=tb1qd28npep0s8frcm3y7dxqajkcy2m40eysplyr9v \
+        --nbits=1e0377ae \
+        --nversion=0x62800100 \
+        --set-block-time=$(date +%s)
+'
+```
+
+Check the state transition with:
+
+```bash
+bitcoin-cli getdeploymentinfo | jq '.deployments.templatehash'
+```
+
+You should see `current_state` go `started` → `locked_in` → `active` over the
+next two 432-block periods.
+
 ## Updating
 
 To update the deployment, you can run:
