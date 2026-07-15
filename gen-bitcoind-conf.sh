@@ -15,7 +15,7 @@ fi
 echo "txindex=1
 blockfilterindex=1
 peerblockfilters=1
-coinstatsindex=1
+coinstatsindex=${COINSTATSINDEX:-1}
 dnsseed=0
 persistmempool=1
 uacomment=$UACOMMENT"

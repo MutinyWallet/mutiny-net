@@ -30,6 +30,7 @@ services:
       MINERENABLED: "1"
       ADDNODE: "bitcoind-services:38333"  # Connect to services node
       DBCACHE: "100"
+      COINSTATSINDEX: "0"  # Mining does not require historical UTXO statistics
       CF_TOKEN: $CF_TOKEN
     ports:
       - "28332:28332"
@@ -59,6 +60,7 @@ services:
       MINERENABLED: "0"  # Disable mining
       ADDNODE: "bitcoind-miner:38333"  # Connect to miner node
       DBCACHE: "150"
+      COINSTATSINDEX: "0"  # Disable unused mining-statistics backfills
     ports:
       - "28335:28332"  # ZMQ ports on alternate host ports
       - "28336:28333"
