@@ -327,6 +327,8 @@ services:
       MAINNET_GRPC_PORT: "10069"
       MAINNET_TLS_CERT_PATH: "/root/faucet_backend/tls.cert"
       MAINNET_ADMIN_MACAROON_PATH: "/root/faucet_backend/reorg.macaroon"
+      ARKADE_DAEMON_URL: "http://arkade-daemon:8080"
+      ARKADE_INTERNAL_TOKEN: $ARKADE_INTERNAL_TOKEN
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -337,6 +339,27 @@ services:
       - ~/volumes/faucet_backend:/root/faucet_backend
     ports:
       - "3001:3001"
+  arkade-daemon:
+    container_name: "arkade-daemon"
+    image: ghcr.io/kukks/arkade-faucet-daemon:latest
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    environment:
+      ARKADE_MNEMONIC: $ARKADE_MNEMONIC
+      ARK_SERVER_URL: "https://mutinynet.arkade.sh"
+      IS_MAINNET: "false"
+      DB_PATH: "/data/arkade-wallet.sqlite"
+      MAX_SEND: "100000"
+      MIN_BALANCE: "100000"
+      REPLENISH_AMOUNT: "1000000"
+      # Replenish from the local faucet backend on the internal network.
+      FAUCET_API: "http://faucet_backend:3001"
+      FAUCET_API_TOKEN: $ARKADE_FAUCET_TOKEN
+      INTERNAL_TOKEN: $ARKADE_INTERNAL_TOKEN
+    volumes:
+      - ~/volumes/arkade-daemon:/data
   fortune_402:
     container_name: "fortune_402"
     image: ghcr.io/benthecarman/fortune-402:master
