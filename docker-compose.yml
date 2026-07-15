@@ -467,6 +467,7 @@ services:
       FRONTEND_HTTP_PORT: "8080"
       BACKEND_MAINNET_HTTP_HOST: "api"
       LIGHTNING: "true"
+      MINING_DASHBOARD: "false"
     image: mempool/frontend:v3.3.1
     user: "0:1000"
     logging: *default-logging
