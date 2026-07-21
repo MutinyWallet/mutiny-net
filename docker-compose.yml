@@ -206,6 +206,7 @@ services:
       --address-search
       --cookie bitcoin:$RPCPASSWORD
       --network signet
+      --magic cb2ddfa5
       --daemon-rpc-addr bitcoind-services:38332
       --blocks-dir /root/.bitcoin/signet/blocks
       --timestamp
