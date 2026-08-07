@@ -6,6 +6,10 @@ server {
 		add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
 		add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cotent-Length' always;
 
+		# Nutshell uses these headers for per-client rate limiting. Override both
+		# so a direct client cannot supply a spoofed address.
+		proxy_set_header CF-Connecting-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $remote_addr;
 		proxy_pass http://127.0.0.1:3338;
 	}
 

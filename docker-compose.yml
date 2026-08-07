@@ -1,5 +1,3 @@
-version: "3.7"
-
 x-logging:
   &default-logging
   driver: "json-file"
@@ -267,7 +265,7 @@ services:
       - ~/volumes/.cashu-lnd:/root/.lnd
   nutshell:
     container_name: "nutshell"
-    image: 'cashubtc/nutshell:0.18.1'
+    image: 'cashubtc/nutshell:0.20.3'
     logging: *default-logging
     restart: always
     stop_grace_period: 1m
@@ -275,13 +273,17 @@ services:
     ports:
       - "3338:3338"
     environment:
-      MINT_LIGHTNING_BACKEND: "LndRestWallet"
+      MINT_BACKEND_BOLT11_SAT: "LndRestWallet"
       MINT_LISTEN_HOST: "0.0.0.0"
       MINT_LISTEN_PORT: "3338"
       MINT_PRIVATE_KEY: $MINT_PRIVATE_KEY
+      MINT_DATABASE: "/root/.cashu/data/mint"
       MINT_LND_REST_ENDPOINT: "https://cashu-lnd:8082"
       MINT_LND_REST_CERT: "/root/.lnd/tls.cert"
       MINT_LND_REST_MACAROON: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
+      MINT_RATE_LIMIT: "TRUE"
+      MINT_RATE_LIMIT_PROXY_TRUST: "TRUE"
+      DB_BACKUP_PATH: "/root/.cashu/backups"
     command: [ "poetry", "run", "mint" ]
     volumes:
       - ~/volumes/.cashu-lnd:/root/.lnd:ro
