@@ -109,8 +109,6 @@ services:
       "--protocol.simple-taproot-chans",
       "--protocol.rbf-coop-close",
       "--protocol.custom-message=513",
-      "--protocol.custom-nodeann=39",
-      "--protocol.custom-init=39",
     ]
     volumes:
       - ~/volumes/.lnd:/root/.lnd
