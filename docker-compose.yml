@@ -159,7 +159,7 @@ services:
 
   postgres:
     container_name: "postgres"
-    image: 'postgres:12-alpine'
+    image: 'postgres:17-alpine'
     logging: *default-logging
     restart: always
     stop_grace_period: 1m
@@ -523,7 +523,7 @@ services:
       MYSQL_USER: "mempool"
       MYSQL_PASSWORD: $MYSQL_PASSWORD
       MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
-    image: mariadb:10.5.21
+    image: mariadb:10.11
     command: >
       --innodb-buffer-pool-size=512M
       --innodb-log-file-size=256M
