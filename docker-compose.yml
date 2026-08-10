@@ -31,12 +31,12 @@ services:
       COINSTATSINDEX: "0"  # Mining does not require historical UTXO statistics
       CF_TOKEN: $CF_TOKEN
     ports:
-      - "28332:28332"
-      - "28333:28333"
-      - "28334:28334"
-      - "38332:38332"
-      - "38333:38333"
-      - "38334:38334"
+      - "127.0.0.1:28332:28332"
+      - "127.0.0.1:28333:28333"
+      - "127.0.0.1:28334:28334"
+      - "127.0.0.1:38332:38332"
+      - "38333:38333"  # p2p, must stay public
+      - "127.0.0.1:38334:38334"
 
   # Services-only bitcoind instance (no mining)
   bitcoind-services:
@@ -60,12 +60,12 @@ services:
       DBCACHE: "150"
       COINSTATSINDEX: "0"  # Disable unused mining-statistics backfills
     ports:
-      - "28335:28332"  # ZMQ ports on alternate host ports
-      - "28336:28333"
-      - "28337:28334"
-      - "38335:38332"  # RPC on alternate port
-      - "38336:38333"  # P2P on alternate port
-      - "38337:38334"
+      - "127.0.0.1:28335:28332"  # ZMQ ports on alternate host ports
+      - "127.0.0.1:28336:28333"
+      - "127.0.0.1:28337:28334"
+      - "127.0.0.1:38335:38332"  # RPC on alternate port
+      - "38336:38333"  # P2P on alternate port, must stay public
+      - "127.0.0.1:38337:38334"
   lnd:
     container_name: "lnd"
     image: lightninglabs/lnd:v0.21.1-beta
@@ -114,8 +114,8 @@ services:
       - ~/volumes/.lnd:/root/.lnd
     ports:
       - "9735:9735"
-      - "10009:10009"
-      - "8081:8081"
+      - "127.0.0.1:10009:10009"
+      - "127.0.0.1:8081:8081"  # proxied by nginx rpc.mutinynet.com
   lndk:
     container_name: "lndk"
     build: ./lndk
@@ -148,7 +148,7 @@ services:
     environment:
       RAPID_GOSSIP_SYNC_SERVER_DB_HOST: postgres
       RAPID_GOSSIP_SYNC_SERVER_DB_USER: lightning-rgs
-      RAPID_GOSSIP_SYNC_SERVER_DB_PASSWORD: docker
+      RAPID_GOSSIP_SYNC_SERVER_DB_PASSWORD: $POSTGRES_PASSWORD
       RAPID_GOSSIP_SYNC_SERVER_DB_NAME: ln_graph_sync
       RAPID_GOSSIP_SYNC_SERVER_NETWORK: signet
       RAPID_GOSSIP_SYNC_SERVER_SNAPSHOT_INTERVAL: 10800 # 3 hours (minimum)
@@ -165,12 +165,12 @@ services:
     stop_grace_period: 1m
     user: "0:1000"
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - ~/volumes/postgres:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: lightning-rgs
-      POSTGRES_PASSWORD: docker
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
       POSTGRES_DB: ln_graph_sync
   #  electrs:
   #    container_name: "electrs"
@@ -215,8 +215,8 @@ services:
       - ~/volumes/.bitcoin-services:/root/.bitcoin:ro
       - ~/volumes/mempool_electrs:/root/.electrs
     ports:
-      - "3003:3003"
-      - "0.0.0.0:50001:50001"
+      - "127.0.0.1:3003:3003"  # proxied by nginx mutinynet.com /api
+      - "0.0.0.0:50001:50001"  # public electrum service
 
   # Need a separate lnd instance for Cashu so the faucet can pay it/out
   cashu-lnd:
@@ -258,7 +258,7 @@ services:
       "--protocol.rbf-coop-close",
     ]
     ports:
-      - "8082:8082"
+      - "127.0.0.1:8082:8082"
     volumes:
       - ~/volumes/.cashu-lnd:/root/.lnd
   nutshell:
@@ -269,7 +269,7 @@ services:
     stop_grace_period: 1m
     user: "0:1000"
     ports:
-      - "3338:3338"
+      - "127.0.0.1:3338:3338"
     environment:
       MINT_BACKEND_BOLT11_SAT: "LndRestWallet"
       MINT_LISTEN_HOST: "0.0.0.0"
@@ -296,7 +296,7 @@ services:
     volumes:
       - ~/volumes/faucet:/root/.faucet
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
   faucet_backend:
     container_name: "faucet_backend"
     image: ghcr.io/mutinywallet/mutinynet-faucet-rs:master
@@ -325,7 +325,7 @@ services:
       ANALYTICS_DB_PATH: "/root/faucet_backend/analytics.db"
       ANALYTICS_TOKEN: $ANALYTICS_TOKEN
       USERS_DB_PATH: "/root/faucet_backend/users.db"
-      ADMIN_TOKEN: $ANALYTICS_TOKEN
+      ADMIN_TOKEN: $ADMIN_TOKEN
       MAINNET_GRPC_HOST: ${MAINNET_GRPC_HOST}
       MAINNET_GRPC_PORT: "10069"
       MAINNET_TLS_CERT_PATH: "/root/faucet_backend/tls.cert"
@@ -341,7 +341,7 @@ services:
       - ./faucet_config:/app/faucet_config:ro
       - ~/volumes/faucet_backend:/root/faucet_backend
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
   arkade-daemon:
     container_name: "arkade-daemon"
     image: ghcr.io/kukks/arkade-faucet-daemon:latest
@@ -379,7 +379,7 @@ services:
     volumes:
       - ~/volumes/.lnd:/root/.lnd:ro
     ports:
-      - "3402:3402"
+      - "127.0.0.1:3402:3402"
   lnurl_server:
     container_name: "lnurl_server"
     image: ghcr.io/benthecarman/lnurl-server:master
@@ -401,7 +401,7 @@ services:
       - ~/volumes/.lnd:/root/.lnd:ro
       - ~/volumes/lnurl:/root/.lnurl
     ports:
-      - "3002:3002"
+      - "127.0.0.1:3002:3002"
   #  spark:
   #    container_name: "spark"
   #    build:
@@ -478,7 +478,7 @@ services:
     stop_grace_period: 1m
     command: "./wait-for db:3306 --timeout=720 -- nginx -g 'daemon off;'"
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
   api:
     container_name: "mempool_backend"
     environment:
@@ -497,7 +497,7 @@ services:
       DATABASE_HOST: "db"
       DATABASE_DATABASE: "mempool"
       DATABASE_USERNAME: "mempool"
-      DATABASE_PASSWORD: "mempool"
+      DATABASE_PASSWORD: $MYSQL_PASSWORD
       STATISTICS_ENABLED: "false"
       LIGHTNING_ENABLED: "true"
       LIGHTNING_BACKEND: "lnd"
@@ -511,8 +511,8 @@ services:
     stop_grace_period: 1m
     command: "./wait-for-it.sh db:3306 --timeout=720 --strict -- ./start.sh"
     ports:
-      - "8889:8889"
-      - "8999:8999"
+      - "127.0.0.1:8889:8889"
+      - "127.0.0.1:8999:8999"
     volumes:
       - ~/volumes/mempool:/backend/cache
       - ~/volumes/.lnd:/root/.lnd:ro
@@ -521,8 +521,8 @@ services:
     environment:
       MYSQL_DATABASE: "mempool"
       MYSQL_USER: "mempool"
-      MYSQL_PASSWORD: "mempool"
-      MYSQL_ROOT_PASSWORD: "admin"
+      MYSQL_PASSWORD: $MYSQL_PASSWORD
+      MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
     image: mariadb:10.5.21
     command: >
       --innodb-buffer-pool-size=512M
@@ -550,8 +550,8 @@ services:
     logging: *default-logging
     stop_grace_period: 1m
     ports:
-      - "8083:3000"
+      - "127.0.0.1:8083:3000"
     environment:
       CF_TOKEN: $CF_TOKEN
       ANALYTICS_TOKEN: $ANALYTICS_TOKEN
-      ADMIN_TOKEN: $ANALYTICS_TOKEN
+      ADMIN_TOKEN: $ADMIN_TOKEN
