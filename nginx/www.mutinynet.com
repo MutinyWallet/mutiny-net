@@ -14,7 +14,7 @@ server {
 		add_header Access-Control-Expose-Headers "X-Total-Count" always;
 		add_header X-Total-Count "3264595" always;
 		add_header Cache-Control "public, max-age=60" always;
-		return 200 '{"pools":[{"poolId":1,"name":"Unknown","link":"https://learnmeabitcoin.com/technical/coinbase-transaction","blockCount":79431,"rank":1,"emptyBlocks":30123,"slug":"unknown","avgMatchRate":null,"avgFeeDelta":null,"poolUniqueId":0}],"blockCount":79431,"lastEstimatedHashrate":147976.0707714739,"lastEstimatedHashrate3d":147896.6113425926,"lastEstimatedHashrate1w":147961.761558658}';
+		return 200 '{"pools":[{"poolId":172,"name":"Mutinynet","link":"https://mutinynet.com","blockCount":79431,"rank":1,"emptyBlocks":30123,"slug":"mutinynet","avgMatchRate":null,"avgFeeDelta":null,"poolUniqueId":0}],"blockCount":79431,"lastEstimatedHashrate":147976.0707714739,"lastEstimatedHashrate3d":147896.6113425926,"lastEstimatedHashrate1w":147961.761558658}';
 	}
 	location = /api/v1/mining/pools/1w {
 		default_type application/json;
@@ -22,7 +22,7 @@ server {
 		add_header Access-Control-Expose-Headers "X-Total-Count" always;
 		add_header X-Total-Count "3264596" always;
 		add_header Cache-Control "public, max-age=60" always;
-		return 200 '{"pools":[{"poolId":1,"name":"Unknown","link":"https://learnmeabitcoin.com/technical/coinbase-transaction","blockCount":18495,"rank":1,"emptyBlocks":9027,"slug":"unknown","avgMatchRate":null,"avgFeeDelta":null,"poolUniqueId":0}],"blockCount":18495,"lastEstimatedHashrate":147971.4505318964,"lastEstimatedHashrate3d":147896.6113425926,"lastEstimatedHashrate1w":147961.1008964977}';
+		return 200 '{"pools":[{"poolId":172,"name":"Mutinynet","link":"https://mutinynet.com","blockCount":18495,"rank":1,"emptyBlocks":9027,"slug":"mutinynet","avgMatchRate":null,"avgFeeDelta":null,"poolUniqueId":0}],"blockCount":18495,"lastEstimatedHashrate":147971.4505318964,"lastEstimatedHashrate3d":147896.6113425926,"lastEstimatedHashrate1w":147961.1008964977}';
 	}
 	location ^~ /api/v1/mining/ {
 		default_type application/json;
