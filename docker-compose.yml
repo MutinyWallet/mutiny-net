@@ -278,7 +278,7 @@ services:
       MINT_DATABASE: "/root/.cashu/data/mint"
       MINT_LND_REST_ENDPOINT: "https://cashu-lnd:8082"
       MINT_LND_REST_CERT: "/root/.lnd/tls.cert"
-      MINT_LND_REST_MACAROON: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
+      MINT_LND_REST_MACAROON: "/root/.lnd/data/chain/bitcoin/signet/mint.macaroon"
       MINT_RATE_LIMIT: "TRUE"
       MINT_RATE_LIMIT_PROXY_TRUST: "TRUE"
       DB_BACKUP_PATH: "/root/.cashu/backups"
@@ -369,7 +369,7 @@ services:
     environment:
       LND_ADDRESS: "https://lnd:10009"
       LND_CERT_PATH: "/root/.lnd/tls.cert"
-      LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
+      LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/fortune.macaroon"
       INVOICE_AMOUNT_SATS: "100"
       L402_ROOT_KEY: $L402_ROOT_KEY
     user: "0:1000"
@@ -390,7 +390,7 @@ services:
       LNURL_LND_HOST: "lnd"
       LNURL_LND_PORT: "10009"
       LNURL_LND_CERT_PATH: "/root/.lnd/tls.cert"
-      LNURL_LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
+      LNURL_LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/lnurl.macaroon"
       LNURL_NETWORK: "signet"
       LNURL_DOMAIN: "lnurl.mutinynet.com"
     user: "0:1000"
@@ -505,7 +505,7 @@ services:
       LIGHTNING_ENABLED: "true"
       LIGHTNING_BACKEND: "lnd"
       LND_TLS_CERT_PATH: "/root/.lnd/tls.cert"
-      LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
+      LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/readonly.macaroon"
       LND_REST_API_URL: "https://lnd:8081"
     image: mempool/backend:v3.3.1
     logging: *default-logging
