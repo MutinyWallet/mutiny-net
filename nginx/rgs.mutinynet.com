@@ -25,6 +25,7 @@ server {
             add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
         }
 
+        include /root/mutiny-net/nginx/hsts.conf;
         index index.html; # Default files to serve
 	}
 

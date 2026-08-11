@@ -16,6 +16,7 @@ server {
 		add_header Access-Control-Allow-Origin "*" always;
 		add_header Access-Control-Expose-Headers "X-Total-Count" always;
 		add_header X-Total-Count "3264595" always;
+		include /root/mutiny-net/nginx/hsts.conf;
 		add_header Cache-Control "public, max-age=60" always;
 		alias /var/www/mutinynet-static/mining/pools/1m.json;
 	}
@@ -24,12 +25,14 @@ server {
 		add_header Access-Control-Allow-Origin "*" always;
 		add_header Access-Control-Expose-Headers "X-Total-Count" always;
 		add_header X-Total-Count "3264596" always;
+		include /root/mutiny-net/nginx/hsts.conf;
 		add_header Cache-Control "public, max-age=60" always;
 		alias /var/www/mutinynet-static/mining/pools/1w.json;
 	}
 	location ^~ /api/v1/mining/ {
 		default_type application/json;
 		add_header Access-Control-Allow-Origin "*" always;
+		include /root/mutiny-net/nginx/hsts.conf;
 		return 404 '{"error":"Mining API disabled"}';
 	}
 	location /api/v1 {
@@ -57,6 +60,7 @@ server {
             add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
             add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
         }
+		include /root/mutiny-net/nginx/hsts.conf;
 		proxy_pass http://127.0.0.1:3003/;
 	}
 

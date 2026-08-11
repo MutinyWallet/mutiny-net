@@ -10,6 +10,7 @@ server {
 		# so a direct client cannot supply a spoofed address.
 		proxy_set_header CF-Connecting-IP $remote_addr;
 		proxy_set_header X-Forwarded-For $remote_addr;
+		include /root/mutiny-net/nginx/hsts.conf;
 		proxy_pass http://127.0.0.1:3338;
 	}
 

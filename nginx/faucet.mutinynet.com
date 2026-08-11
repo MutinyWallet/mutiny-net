@@ -20,6 +20,7 @@ server {
 		add_header 'Access-Control-Allow-Origin' '*' always;
 		add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
 		add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cotent-Length' always;
+		include /root/mutiny-net/nginx/hsts.conf;
 
 		limit_req zone=faucet_write burst=3 nodelay;
 
@@ -143,6 +144,7 @@ server {
             add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
             add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
         }
+		include /root/mutiny-net/nginx/hsts.conf;
 		proxy_pass http://127.0.0.1:3000;
 	}
 

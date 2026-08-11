@@ -6,6 +6,7 @@ server {
 		add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
 		add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Content-Length,Authorization' always;
 
+		include /root/mutiny-net/nginx/hsts.conf;
 		proxy_pass http://127.0.0.1:3402;
 	}
 
