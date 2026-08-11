@@ -3,6 +3,9 @@ map $http_upgrade $connection_upgrade {
     '' close;
 }
 
+# Cloudflare-proxied: log and forward the real client IP.
+include /root/mutiny-net/nginx/cloudflare-realip.conf;
+
 server {
 	server_name mutinynet.com;
 

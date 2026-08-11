@@ -1,3 +1,6 @@
+# Cloudflare-proxied: log and forward the real client IP.
+include /root/mutiny-net/nginx/cloudflare-realip.conf;
+
 server {
 	server_name analytics.mutinynet.com;
 
