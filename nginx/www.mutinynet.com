@@ -14,7 +14,7 @@ server {
 		add_header Access-Control-Expose-Headers "X-Total-Count" always;
 		add_header X-Total-Count "3264595" always;
 		add_header Cache-Control "public, max-age=60" always;
-		return 200 '{"pools":[{"poolId":172,"name":"Mutinynet","link":"https://mutinynet.com","blockCount":79431,"rank":1,"emptyBlocks":30123,"slug":"mutinynet","avgMatchRate":null,"avgFeeDelta":null,"poolUniqueId":0}],"blockCount":79431,"lastEstimatedHashrate":147976.0707714739,"lastEstimatedHashrate3d":147896.6113425926,"lastEstimatedHashrate1w":147961.761558658}';
+		alias /var/www/mutinynet-static/mining/pools/1m.json;
 	}
 	location = /api/v1/mining/pools/1w {
 		default_type application/json;
@@ -22,7 +22,7 @@ server {
 		add_header Access-Control-Expose-Headers "X-Total-Count" always;
 		add_header X-Total-Count "3264596" always;
 		add_header Cache-Control "public, max-age=60" always;
-		return 200 '{"pools":[{"poolId":172,"name":"Mutinynet","link":"https://mutinynet.com","blockCount":18495,"rank":1,"emptyBlocks":9027,"slug":"mutinynet","avgMatchRate":null,"avgFeeDelta":null,"poolUniqueId":0}],"blockCount":18495,"lastEstimatedHashrate":147971.4505318964,"lastEstimatedHashrate3d":147896.6113425926,"lastEstimatedHashrate1w":147961.1008964977}';
+		alias /var/www/mutinynet-static/mining/pools/1w.json;
 	}
 	location ^~ /api/v1/mining/ {
 		default_type application/json;
@@ -70,11 +70,10 @@ server {
 
 
     listen 443 ssl; # managed by Certbot
-    ssl_certificate /etc/letsencrypt/live/mutinynet.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/mutinynet.com/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/mutinynet.com-0002/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/mutinynet.com-0002/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
-
 }
 server {
     if ($host = www.mutinynet.com) {
@@ -85,6 +84,4 @@ server {
 	server_name www.mutinynet.com;
     listen 80;
     return 404; # managed by Certbot
-
-
 }
