@@ -1,8 +1,7 @@
-# This host is Cloudflare-proxied. Restore the real client IP from
-# CF-Connecting-IP so that $binary_remote_addr (rate-limit zones) and
-# $proxy_add_x_forwarded_for (backend per-IP budgets) key on the actual
-# user, not the Cloudflare edge node.
-include /root/mutiny-net/nginx/cloudflare-realip.conf;
+# This host is Cloudflare-proxied. The real client IP is restored from
+# CF-Connecting-IP by the realip config included at http level in
+# nginx.conf (cloudflare-realip.conf), so rate-limit zones and
+# X-Forwarded-For key on the actual user, not the Cloudflare edge node.
 
 # Read endpoints: page loads, status checks, session creation.
 limit_req_zone $binary_remote_addr zone=faucet_read:10m rate=30r/m;
