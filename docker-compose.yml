@@ -484,6 +484,9 @@ services:
     environment:
       MEMPOOL_NETWORK: "signet"
       MEMPOOL_BACKEND: "none"
+      # Startup re-tag of 3M+ signet blocks takes minutes and blocks new-block
+      # inserts; the mining API is disabled at nginx anyway.
+      MEMPOOL_AUTOMATIC_POOLS_UPDATE: "false"
       ELECTRUM_HOST: "electrs"
       ELECTRUM_PORT: "50001"
       ELECTRUM_TLS_ENABLED: "false"
