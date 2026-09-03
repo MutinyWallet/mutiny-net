@@ -470,8 +470,6 @@ services:
       timeout: 10s
       retries: 3
   #  Lightning backend for the SSP (bitcoind backend, custom signet).
-  #  NOTE: ldk-server has no custom-signet flag; if it rejects the MutinyNet
-  #  genesis the SSP stays in fake Lightning mode (see ssp /health ldk_mode).
   ldk-server:
     container_name: "ldk-server"
     build:
@@ -493,26 +491,27 @@ services:
       # Defaults to 127.0.0.1:3536, which is unreachable from the ssp container.
       # Host exposure stays loopback-only via the 127.0.0.1:3536 port mapping.
       - LDK_SERVER_NODE_GRPC_SERVICE_ADDRESS=0.0.0.0:3536
-  #  Spark Service Provider (self-hosted SSP; see ../mutinynet-spark).
-  #  Clone mutinynet-spark next to this repo, or set MUTINYNET_SSP_REF to its
-  #  path. First boot generates the SSP signing key; publish
+    healthcheck:
+      test: ["CMD-SHELL", "test -r /home/ldk/signet/api_key && ldk-server-cli --base-url localhost:3536 --api-key $$(od -A n -t x1 /home/ldk/signet/api_key | tr -d ' \\n') --tls-cert /home/ldk/tls.crt get-node-info >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+  #  Spark Service Provider. First boot generates the SSP signing key; publish
   #  ssp_identity_pubkey from ssp:5000/health to wallet configs.
   ssp:
     container_name: "ssp"
-    # Prebuilt images (recommended): docker compose pull ssp swap-sidecar.
-    # Or build from a checkout: set MUTINYNET_SSP_REF (default ../mutinynet-spark).
     image: ${SSP_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp:latest}
-    build:
-      context: ${MUTINYNET_SSP_REF:-../mutinynet-spark}
-      dockerfile: ssp.Dockerfile
     user: "0:1000"
     logging: *default-logging
     restart: always
     stop_grace_period: 1m
     depends_on:
-      - spark
-      - spark2
-      - ldk-server
+      spark:
+        condition: service_healthy
+      spark2:
+        condition: service_healthy
+      ldk-server:
+        condition: service_healthy
     ports:
       - "127.0.0.1:5000:5000"  # proxied by nginx ssp.mutinynet.com
     volumes:
@@ -520,6 +519,7 @@ services:
       - ~/volumes/ldk-server:/ldk-data:ro
     environment:
       SSP_LISTEN_ADDR: 0.0.0.0:5000
+      SSP_CORS_ORIGINS: ${SSP_CORS_ORIGINS:-}
       SSP_NETWORK: SIGNET
       SSP_DATA_DIR: /data
       LDK_GRPC_ADDR: ldk-server:3536
@@ -528,32 +528,39 @@ services:
       SSP_LN_FEE_PPM: 0
       SSP_SWAP_FEE_SATS: 0
       SIDECAR_URL: http://swap-sidecar:5001
-      SIDECAR_TOKEN: $SIDECAR_TOKEN
+      SIDECAR_TOKEN: ${SIDECAR_TOKEN:?set SIDECAR_TOKEN}
       # Operator set the SSP encrypts preimage shares to (lightning receive).
       # Without it the SSP refuses to mint a claimable invoice and logs
       # "SSP_FROST_OPERATORS unset or invalid; cannot store shares".
       # Regenerate with ./spark-operator-pubkeys.sh after reset-spark.sh.
+      # This is empty only during the first operator boot. Set it before the
+      # SSP starts. See the boot sequence in README.md.
       SSP_FROST_OPERATORS: ${SSP_FROST_OPERATORS:-}
-      SSP_FROST_THRESHOLD: ${SSP_FROST_THRESHOLD:-2}
+      SSP_FROST_THRESHOLD: 2
       RUST_LOG: ${SSP_RUST_LOG:-info}
-  #  Funded Spark wallet completing SSP leaf swaps (see ../mutinynet-spark).
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:5000/health | grep -q '\"ldk_mode\":\"live\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+  #  Funded Spark wallet that completes SSP leaf swaps.
   #  Fund once: docker compose run --rm sidecar-fund (needs BITCOIN_RPC_WALLET
   #  with funds on bitcoind-services). Set SO_IDENTITY_PUBKEYS from
   #  ./spark-operator-pubkeys.sh output after first SO boot.
   swap-sidecar:
     container_name: "swap-sidecar"
     image: ${SIDECAR_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp-sidecar:latest}
-    build:
-      context: ${MUTINYNET_SSP_REF:-../mutinynet-spark}
-      dockerfile: swap-sidecar.Dockerfile
     user: "0:1000"
     logging: *default-logging
     restart: always
     stop_grace_period: 1m
     depends_on:
-      - spark
-      - spark2
-      - ssp
+      spark:
+        condition: service_healthy
+      spark2:
+        condition: service_healthy
+      ssp:
+        condition: service_healthy
     ports:
       - "127.0.0.1:5001:5001"
     volumes:
@@ -565,23 +572,33 @@ services:
       SPARK_LOCAL_INGRESS_HOST: sidecar
       SPARK_NETWORK: SIGNET
       SO_HOSTS: spark.minikube.local:10010,spark2.minikube.local:10011
-      SO_IDENTITY_PUBKEYS: $SO_IDENTITY_PUBKEYS
+      SO_IDENTITY_PUBKEYS: ${SO_IDENTITY_PUBKEYS:-}
       SSP_URL: http://ssp:5000
       SIDECAR_MNEMONIC_FILE: /app/data/sidecar.mnemonic
-      SIDECAR_TOKEN: $SIDECAR_TOKEN
+      SIDECAR_FILL_RECEIPTS_FILE: /app/data/swap-fills.json
+      SIDECAR_TOKEN: ${SIDECAR_TOKEN:?set SIDECAR_TOKEN}
+      ELECTRS_URL: ${ELECTRS_URL:-http://mempool_electrs:3003}
       # The SDK only loads /tmp/minikube-ca.pem when network==LOCAL, so on
       # SIGNET the operators' self-signed certs must be trusted via Node.
       NODE_EXTRA_CA_CERTS: /tmp/minikube-ca.pem
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 10s
+      retries: 20
   sidecar-fund:
     container_name: "sidecar-fund"
     image: ${SIDECAR_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp-sidecar:latest}
-    build:
-      context: ${MUTINYNET_SSP_REF:-../mutinynet-spark}
-      dockerfile: swap-sidecar.Dockerfile
     user: "0:1000"
     logging: *default-logging
+    profiles: ["tools"]
     depends_on:
-      - bitcoind-services
+      spark:
+        condition: service_healthy
+      spark2:
+        condition: service_healthy
+      ssp:
+        condition: service_healthy
     restart: "no"
     entrypoint: ["/entrypoint.sh", "node", "fund.mjs"]
     volumes:
@@ -592,7 +609,7 @@ services:
       SPARK_LOCAL_INGRESS_HOST: sidecar
       SPARK_NETWORK: SIGNET
       SO_HOSTS: spark.minikube.local:10010,spark2.minikube.local:10011
-      SO_IDENTITY_PUBKEYS: $SO_IDENTITY_PUBKEYS
+      SO_IDENTITY_PUBKEYS: ${SO_IDENTITY_PUBKEYS:-}
       SSP_URL: http://ssp:5000
       SIDECAR_MNEMONIC_FILE: /app/data/sidecar.mnemonic
       BITCOIN_RPC_URL: http://bitcoind-services:38332

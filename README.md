@@ -32,6 +32,8 @@ Versions prior to 29.0 were using BDB wallet, system will automatically update y
 To run the deployment, you need to have docker and docker-compose installed. Then you can run:
 
 ```bash
+cp .env.sample .env
+# Replace every placeholder before you continue.
 docker-compose up -d
 ```
 
@@ -115,31 +117,41 @@ docker-compose up -d
 
 ## Spark (self-hosted operator + SSP)
 
-The `spark`, `spark2`, `ldk-server`, `ssp`, `swap-sidecar` services run a
-current upstream Spark Operator pair plus the self-hosted SSP stack from
-`../mutinynet-spark` (clone it next to this repo, or set `MUTINYNET_SSP_REF`).
+The `spark`, `spark2`, `ldk-server`, `ssp`, and `swap-sidecar` services run a
+2-of-2 Spark operator set and the MutinyNet SSP. The operator and LDK images
+build from pinned upstream commits. The SSP and sidecar use published images.
+Set `SSP_IMAGE` and `SIDECAR_IMAGE` to tested `sha-*` tags for a production
+release.
 
 Boot order:
 
 ```bash
 docker compose up -d bitcoind-services postgres
-docker compose up -d spark spark2          # wait healthy (~5-10 min first build)
-./spark-operator-pubkeys.sh                # -> set SO_IDENTITY_PUBKEYS in .env, then:
-docker compose up -d ssp swap-sidecar ldk-server
-curl http://127.0.0.1:5000/health          # publish ssp_identity_pubkey to wallets
-docker compose run --rm sidecar-fund       # fund swap liquidity (needs BITCOIN_RPC_WALLET with funds)
+docker compose up -d --build --wait spark spark2
+./spark-operator-pubkeys.sh                # copy both lines to .env
+docker compose pull ssp swap-sidecar
+docker compose up -d --build --wait ldk-server ssp swap-sidecar
+curl --fail http://127.0.0.1:5000/health   # ldk_mode must be "live"
+docker compose run --rm sidecar-fund
 ```
 
 Wallets use `spark-wallet-config.mutinynet.example.json` (SIGNET, custom SOs,
 `https://mutinynet.com/api` electrs, `https://ssp.mutinynet.com` SSP).
-Expose the SSP via nginx: copy `nginx/ssp.mutinynet.com` into place and reload.
+Set its SSP identity to the `ssp_identity_pubkey` from `/health`. The two
+operator keys must match the output of `spark-operator-pubkeys.sh`. Expose the
+SSP through `nginx/ssp.mutinynet.com` and reload nginx.
 
 Notes:
 
-* SO identity keys persist in `~/volumes/spark[N]`; SSP key + sqlite in
-  `~/volumes/ssp-data`; sidecar mnemonic in `~/volumes/sidecar-data`.
-* `reset-spark.sh` wipes operator/SSP state (`--full` also clears ldk-server).
-* ldk-server has no custom-signet flag: if it rejects the MutinyNet genesis,
-  the SSP stays in fake Lightning mode (`ldk_mode` in `/health`).
-* LDK channels: fund the ldk-server on-chain wallet, then open channels with
-  `ldk-server-cli` (see `../mutinynet-spark/deploy/channels.sh`).
+* Set `SIDECAR_TOKEN` before you run any Compose command. Back up the SSP key,
+  database, sidecar mnemonic, and LDK data in `~/volumes`.
+* `SSP_FROST_OPERATORS` is required for Lightning receives. Do not start the
+  SSP until you copy the complete helper output to `.env`.
+* The SSP does not use fake Lightning in production. Its `/health` response
+  must show `"ldk_mode":"live"`.
+* Fund the LDK on-chain wallet and open channels with `ldk-server-cli`.
+  Receives need inbound capacity. Sends need outbound capacity.
+* Lightning receives use exact sidecar leaves. Keep common invoice amounts in
+  the funding ladder and monitor the sidecar `/health` `needsTopup` value.
+* `reset-spark.sh` asks for confirmation and deletes all operator, SSP, and
+  sidecar state. `--full` also deletes the LDK wallet and channel state.

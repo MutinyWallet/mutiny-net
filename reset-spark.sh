@@ -1,41 +1,83 @@
 #!/bin/bash
-# Reset the Spark + SSP stack (operators, SSP state, sidecar). LDK node data
-# is preserved unless --full is passed (backs up nothing; use with care).
-set -e
+# Delete the Spark, SSP, and sidecar state. LDK data is kept by default.
+set -euo pipefail
+
 cd "$(dirname "$0")"
 
-FULL=0
-[ "$1" = "--full" ] && FULL=1
-
-echo "=== Resetting Spark environment ==="
-
-echo "Stopping spark containers..."
-docker compose stop spark spark2 ssp swap-sidecar || true
-
-echo "Dropping spark databases..."
-docker compose exec postgres psql -U lightning-rgs -d postgres -c "DROP DATABASE IF EXISTS sparkoperator_0;" || true
-docker compose exec postgres psql -U lightning-rgs -d postgres -c "DROP DATABASE IF EXISTS spark_ephemeral_0;" || true
-docker compose exec postgres psql -U lightning-rgs -d postgres -c "DROP DATABASE IF EXISTS sparkoperator_1;" || true
-docker compose exec postgres psql -U lightning-rgs -d postgres -c "DROP DATABASE IF EXISTS spark_ephemeral_1;" || true
-
-echo "Recreating spark databases..."
-for db in sparkoperator_0 spark_ephemeral_0 sparkoperator_1 spark_ephemeral_1; do
-  docker compose exec postgres psql -U lightning-rgs -d postgres -c "CREATE DATABASE $db;"
+full=0
+assume_yes=0
+for arg in "$@"; do
+    case "$arg" in
+        --full) full=1 ;;
+        --yes) assume_yes=1 ;;
+        -h|--help)
+            echo "Usage: $0 [--full] [--yes]"
+            echo "  --full  Also delete the LDK wallet and channel state."
+            echo "  --yes   Do not ask for confirmation."
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $arg" >&2
+            exit 2
+            ;;
+    esac
 done
 
-echo "Cleaning operator + SSP volumes..."
-sudo rm -rf ~/volumes/spark/* ~/volumes/spark2/* ~/volumes/spark-shared/* \
-  ~/volumes/ssp-data/* ~/volumes/sidecar-data/*
+volume_root=$(realpath -m "${MUTINYNET_VOLUME_ROOT:-${HOME}/volumes}")
+case "$volume_root" in
+    /|"$HOME")
+        echo "Refusing unsafe volume root: $volume_root" >&2
+        exit 1
+        ;;
+esac
 
-if [ "$FULL" = "1" ]; then
-  echo "Full reset: also clearing ldk-server data (channels + wallet)..."
-  docker compose stop ldk-server || true
-  sudo rm -rf ~/volumes/ldk-server/*
+targets=(spark spark2 spark-shared ssp-data sidecar-data)
+if [ "$full" = "1" ]; then
+    targets+=(ldk-server)
 fi
 
-echo "Starting fresh..."
+echo "This deletes state from:"
+for name in "${targets[@]}"; do
+    echo "  $volume_root/$name"
+done
+if [ "$assume_yes" != "1" ]; then
+    read -r -p "Type RESET to continue: " confirmation
+    if [ "$confirmation" != "RESET" ]; then
+        echo "Reset cancelled"
+        exit 1
+    fi
+fi
+
+services=(spark spark2 ssp swap-sidecar)
+if [ "$full" = "1" ]; then
+    services+=(ldk-server)
+fi
+docker compose stop "${services[@]}" || true
+
+for db in \
+    sparkoperator_0 spark_ephemeral_0 \
+    sparkoperator_1 spark_ephemeral_1; do
+    docker compose exec -T postgres psql \
+        -U lightning-rgs -d postgres \
+        -c "DROP DATABASE IF EXISTS $db;"
+done
+
+for name in "${targets[@]}"; do
+    target="$volume_root/$name"
+    mkdir -p "$target"
+    resolved=$(realpath -m "$target")
+    if [ "$resolved" != "$target" ] || \
+        [ "${resolved#"$volume_root"/}" = "$resolved" ]; then
+        echo "Refusing unexpected reset target: $resolved" >&2
+        exit 1
+    fi
+    find "$resolved" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+done
+
 docker compose up -d --no-deps --force-recreate spark spark2
-echo "Next: ssp (generates fresh signing key), then fund sidecar:"
-echo "  docker compose up -d --no-deps ssp swap-sidecar"
-echo "  docker compose run --rm sidecar-fund"
-echo "Monitor: docker compose logs -f spark spark2 ssp"
+
+echo "Spark operators are starting with new identities."
+echo "After both are healthy:"
+echo "  1. Run ./spark-operator-pubkeys.sh and update .env."
+echo "  2. Run docker compose up -d ldk-server ssp swap-sidecar."
+echo "  3. Run docker compose run --rm sidecar-fund."
