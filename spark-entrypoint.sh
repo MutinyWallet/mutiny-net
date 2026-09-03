@@ -55,13 +55,18 @@ ensure_identity() {
 # Both operators publish their pubkeys to the shared volume, then each builds
 # the same operators.json. (The old script hardcoded operator 0's pubkey.)
 rendezvous_operators() {
-    echo "Waiting for peer operator pubkey..."
+    echo "Waiting for peer operator pubkey + cert..."
     for i in $(seq 1 60); do
-        if [ -f "$SHARED_DIR/pubkey_0" ] && [ -f "$SHARED_DIR/pubkey_1" ]; then break; fi
+        if [ -f "$SHARED_DIR/pubkey_0" ] && [ -f "$SHARED_DIR/pubkey_1" ] \
+        && [ -f "$SHARED_DIR/server_0.crt" ] && [ -f "$SHARED_DIR/server_1.crt" ]; then break; fi
         sleep 2
     done
     if [ ! -f "$SHARED_DIR/pubkey_0" ] || [ ! -f "$SHARED_DIR/pubkey_1" ]; then
         echo "ERROR: peer pubkey did not appear in $SHARED_DIR"
+        exit 1
+    fi
+    if [ ! -f "$SHARED_DIR/server_0.crt" ] || [ ! -f "$SHARED_DIR/server_1.crt" ]; then
+        echo "ERROR: peer cert did not appear in $SHARED_DIR"
         exit 1
     fi
     local pub0 pub1
@@ -73,14 +78,14 @@ rendezvous_operators() {
     "address": "spark:10010",
     "external_address": "spark:10010",
     "identity_public_key": "$pub0",
-    "cert_path": "$HOME_DIR/server.crt"
+    "cert_path": "$SHARED_DIR/server_0.crt"
   },
   {
     "id": 1,
     "address": "spark2:10011",
     "external_address": "spark2:10011",
     "identity_public_key": "$pub1",
-    "cert_path": "$HOME_DIR/server.crt"
+    "cert_path": "$SHARED_DIR/server_1.crt"
   }
 ]
 EOF
@@ -90,13 +95,18 @@ EOF
 ensure_tls_cert() {
     if [ -f "$HOME_DIR/server.crt" ] && [ -f "$HOME_DIR/server.key" ]; then
         echo "TLS cert exists"
-        return
+    else
+        echo "Generating TLS cert..."
+        openssl genrsa -out "$HOME_DIR/server.key" 2048 2>/dev/null
+        openssl req -new -x509 -key "$HOME_DIR/server.key" -out "$HOME_DIR/server.crt" \
+            -days 3650 -subj "/CN=spark-$INDEX" \
+            -addext "subjectAltName = DNS:spark,DNS:spark2,DNS:localhost,DNS:spark.minikube.local,DNS:spark2.minikube.local,DNS:0.spark.mutinynet.com,DNS:1.spark.mutinynet.com"
     fi
-    echo "Generating TLS cert..."
-    openssl genrsa -out "$HOME_DIR/server.key" 2048 2>/dev/null
-    openssl req -new -x509 -key "$HOME_DIR/server.key" -out "$HOME_DIR/server.crt" \
-        -days 3650 -subj "/CN=spark-$INDEX" \
-        -addext "subjectAltName = DNS:spark,DNS:spark2,DNS:localhost,DNS:spark.minikube.local,DNS:spark2.minikube.local,DNS:0.spark.mutinynet.com,DNS:1.spark.mutinynet.com"
+    # Publish our cert to the shared volume. Each operator's cert is self-signed,
+    # so the peer must trust *that* file directly -- pointing both operators at
+    # their own server.crt makes DKG fail with "certificate signed by unknown
+    # authority".
+    cp "$HOME_DIR/server.crt" "$SHARED_DIR/server_${INDEX}.crt"
 }
 
 start_frost_signer() {
@@ -122,9 +132,10 @@ wait_for_db
 create_databases
 run_migrations
 ensure_identity
+# Must precede rendezvous: it publishes our cert, which the peer waits for.
+ensure_tls_cert
 rendezvous_operators
 [ -f /config/so_config.yaml ] && envsubst < /config/so_config.yaml > "$HOME_DIR/so_config.yaml"
-ensure_tls_cert
 start_frost_signer
 
 echo "Starting spark-operator on port $PORT..."

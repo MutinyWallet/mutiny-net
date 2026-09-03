@@ -6,13 +6,13 @@
       "id": 0,
       "identifier": "0000000000000000000000000000000000000000000000000000000000000001",
       "address": "https://0.spark.mutinynet.com",
-      "identityPublicKey": "<SO0_PUBKEY from spark-operator-pubkeys.sh>"
+      "identityPublicKey": "03b642cb30077db61482c238a945b6f56aac5e98ad0e6a14e7b8ad04ed8623637b"
     },
     "0000000000000000000000000000000000000000000000000000000000000002": {
       "id": 1,
       "identifier": "0000000000000000000000000000000000000000000000000000000000000002",
       "address": "https://1.spark.mutinynet.com",
-      "identityPublicKey": "<SO1_PUBKEY from spark-operator-pubkeys.sh>"
+      "identityPublicKey": "02b90c8c139eeacc8c84c0afe1d39182ee90d97a20209efa2517497313e30590b6"
     }
   },
   "electrsUrl": "https://mutinynet.com/api",

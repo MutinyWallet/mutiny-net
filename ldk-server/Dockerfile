@@ -2,8 +2,13 @@
 # Clones pinned upstream. Override with --build-arg LDK_SERVER_REF=<sha>.
 ARG LDK_SERVER_REF=6d6d810714706c225ce7effc2163eff6a1b54221
 
+# Capped for the same reason as spark/Dockerfile: bitcoind shares this host.
+ARG BUILD_JOBS=2
+
 FROM rust:1.85 AS builder
 ARG LDK_SERVER_REF
+ARG BUILD_JOBS
+ENV CARGO_BUILD_JOBS=${BUILD_JOBS}
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 RUN git clone https://github.com/lightningdevkit/ldk-server /app \
  && cd /app && git checkout ${LDK_SERVER_REF}

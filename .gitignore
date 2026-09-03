@@ -2,3 +2,4 @@
 banned_users.txt
 banned_domains.txt
 /faucet_config
+.env.bak.*

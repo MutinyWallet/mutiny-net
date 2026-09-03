@@ -2,6 +2,9 @@
 # Clones pinned upstream (buildonspark/spark) and builds SO + frost signer.
 # Override the pin with --build-arg SPARK_REF=<sha>.
 ARG SPARK_REF=0b3a32a05c9ac06cc411683551dd1f1bde9d0caa
+# Build parallelism is capped: this host runs bitcoind alongside the build and
+# a full-width build OOMs it. Raise BUILD_JOBS on a machine with more headroom.
+ARG BUILD_JOBS=2
 
 FROM alpine/git AS src
 ARG SPARK_REF
@@ -9,16 +12,19 @@ RUN git clone https://github.com/buildonspark/spark /spark \
  && cd /spark && git checkout ${SPARK_REF} && git rev-parse HEAD
 
 FROM golang:1.27-bookworm AS builder-go
+ARG BUILD_JOBS
 RUN apt-get update && apt-get install -y libzmq3-dev && rm -rf /var/lib/apt/lists
 COPY --from=src /spark/spark/go.mod /spark/spark/go.sum spark/
 RUN cd spark && go mod download
 COPY --from=src /spark/spark spark
-RUN cd spark && CGO_ENABLED=1 go build -o /go/bin/spark-operator ./bin/operator
+RUN cd spark && CGO_ENABLED=1 GOMAXPROCS=${BUILD_JOBS} go build -p ${BUILD_JOBS} -o /go/bin/spark-operator ./bin/operator
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.13 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /bin/grpc_health_probe
 
 FROM rust:1.92-slim-bookworm AS builder-rust
+ARG BUILD_JOBS
+ENV CARGO_BUILD_JOBS=${BUILD_JOBS}
 RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
 WORKDIR /signer
 COPY --from=src /spark/signer ./
