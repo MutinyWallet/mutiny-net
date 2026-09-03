@@ -529,7 +529,13 @@ services:
       SSP_SWAP_FEE_SATS: 0
       SIDECAR_URL: http://swap-sidecar:5001
       SIDECAR_TOKEN: $SIDECAR_TOKEN
-      RUST_LOG: info
+      # Operator set the SSP encrypts preimage shares to (lightning receive).
+      # Without it the SSP refuses to mint a claimable invoice and logs
+      # "SSP_FROST_OPERATORS unset or invalid; cannot store shares".
+      # Regenerate with ./spark-operator-pubkeys.sh after reset-spark.sh.
+      SSP_FROST_OPERATORS: ${SSP_FROST_OPERATORS:-}
+      SSP_FROST_THRESHOLD: ${SSP_FROST_THRESHOLD:-2}
+      RUST_LOG: ${SSP_RUST_LOG:-info}
   #  Funded Spark wallet completing SSP leaf swaps (see ../mutinynet-spark).
   #  Fund once: docker compose run --rm sidecar-fund (needs BITCOIN_RPC_WALLET
   #  with funds on bitcoind-services). Set SO_IDENTITY_PUBKEYS from
