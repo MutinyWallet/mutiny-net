@@ -582,11 +582,6 @@ services:
       - ~/volumes/sidecar-data:/app/data
       - ~/volumes/spark:/tls/spark0:ro
       - ~/volumes/spark2:/tls/spark1:ro
-      # Bundled faucet.mjs mines via generatetoaddress (regtest-only); on this
-      # signet that silently no-ops and deposits get claimed unconfirmed.
-      - ./sidecar-fund-faucet.signet.mjs:/app/faucet.mjs:ro
-      # Adds electrsUrl; the SDK default is unreachable from this container.
-      - ./sidecar-fund.signet.mjs:/app/fund.mjs:ro
     environment:
       SPARK_LOCAL_INGRESS_HOST: sidecar
       SPARK_NETWORK: SIGNET
@@ -598,7 +593,18 @@ services:
       BITCOIN_RPC_USER: bitcoin
       BITCOIN_RPC_PASSWORD: $RPCPASSWORD
       BITCOIN_RPC_WALLET: ${BITCOIN_RPC_WALLET:-default}
-      FUND_MULTIPLICITY: 3
+      # Custom signet: the SDK's built-in electrs hosts don't cover it, and
+      # MINING must stay unset so faucet.mjs polls for confirmations rather
+      # than calling generatetoaddress (which cannot sign a block here).
+      ELECTRS_URL: ${ELECTRS_URL:-http://mempool_electrs:3003}
+      # Fills consume the SMALL denominations, so a full-ladder top-up spends
+      # most of its sats on large denoms that never deplete and still only buys
+      # a couple of fills. Skew top-ups to the small end with high multiplicity:
+      # 7 denoms x 20 = 140 sends for ~2.5M sats. Note each send needs its own
+      # confirmed UTXO in BITCOIN_RPC_WALLET or bitcoind hits the 25-descendant
+      # mempool chain limit -- keep at least FUND_MULTIPLICITY * denoms UTXOs.
+      FUND_LADDER: ${FUND_LADDER:-1000,2000,4000,8000,16000,32000,64000}
+      FUND_MULTIPLICITY: ${FUND_MULTIPLICITY:-20}
       NODE_EXTRA_CA_CERTS: /tmp/minikube-ca.pem
   web:
     container_name: "mempool_frontend"
