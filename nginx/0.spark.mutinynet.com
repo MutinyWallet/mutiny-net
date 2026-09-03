@@ -3,7 +3,7 @@ server {
 
     # gRPC endpoint (main Spark operator API)
     location / {
-        grpc_pass grpc://127.0.0.1:10010;
+        grpc_pass grpcs://127.0.0.1:10010;
         grpc_set_header Host $host;
         grpc_set_header X-Real-IP $remote_addr;
         grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -20,6 +20,7 @@ server {
     }
 
     listen 443 ssl; # managed by Certbot
+    http2 on;  # gRPC requires HTTP/2; without ALPN h2 clients get TLS alert 120
     ssl_certificate /etc/letsencrypt/live/mutinynet.com-0002/fullchain.pem; # managed by Certbot
     ssl_certificate_key /etc/letsencrypt/live/mutinynet.com-0002/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot

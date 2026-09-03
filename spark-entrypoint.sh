@@ -1,10 +1,16 @@
 #!/bin/bash
-# Spark Operator entrypoint for MutinyNet (2 operators, current upstream SO).
+# Spark Operator entrypoint for MutinyNet (2 operators; see SPARK_OPERATOR_COUNT).
 # Per-operator state lives in /home/spark (volume ~/volumes/spark[N]).
 # Rendezvous between operators happens in /home/spark-shared (shared volume).
 set -e
 
 INDEX=${SPARK_INDEX:-0}
+# Number of operators. FROST requires min_signers >= 2, so a single-operator
+# deployment cannot generate signing keyshares at all (DKG fails with
+# InvalidMinSigners) -- 2 is the minimum workable value. Requires the signet
+# network-inference patch in spark/Dockerfile; see the comment there.
+OPERATOR_COUNT=${SPARK_OPERATOR_COUNT:-2}
+THRESHOLD=${SPARK_THRESHOLD:-$OPERATOR_COUNT}
 PORT=$((10010 + INDEX))
 SOCKET_PATH="/tmp/frost_${INDEX}.sock"
 HOME_DIR="/home/spark"
@@ -55,6 +61,21 @@ ensure_identity() {
 # Both operators publish their pubkeys to the shared volume, then each builds
 # the same operators.json. (The old script hardcoded operator 0's pubkey.)
 rendezvous_operators() {
+    if [ "$OPERATOR_COUNT" = "1" ]; then
+        cat > "$HOME_DIR/operators.json" <<EOF
+[
+  {
+    "id": 0,
+    "address": "spark:10010",
+    "external_address": "spark:10010",
+    "identity_public_key": "$(cat "$SHARED_DIR/pubkey_0")",
+    "cert_path": "$SHARED_DIR/server_0.crt"
+  }
+]
+EOF
+        echo "operators.json ready (single operator)"
+        return
+    fi
     echo "Waiting for peer operator pubkey + cert..."
     for i in $(seq 1 60); do
         if [ -f "$SHARED_DIR/pubkey_0" ] && [ -f "$SHARED_DIR/pubkey_1" ] \
@@ -144,7 +165,7 @@ exec spark-operator \
     -index "$INDEX" \
     -key "$HOME_DIR/operator_${INDEX}.key" \
     -operators "$HOME_DIR/operators.json" \
-    -threshold 2 \
+    -threshold "$THRESHOLD" \
     -signer "unix://$SOCKET_PATH" \
     -port "$PORT" \
     -database "${DB_BASE}/${OPERATOR_DB}?sslmode=disable" \

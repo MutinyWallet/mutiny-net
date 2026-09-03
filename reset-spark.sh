@@ -34,8 +34,8 @@ if [ "$FULL" = "1" ]; then
 fi
 
 echo "Starting fresh..."
-docker compose up -d --force-recreate spark spark2
+docker compose up -d --no-deps --force-recreate spark spark2
 echo "Next: ssp (generates fresh signing key), then fund sidecar:"
-echo "  docker compose up -d ssp swap-sidecar"
+echo "  docker compose up -d --no-deps ssp swap-sidecar"
 echo "  docker compose run --rm sidecar-fund"
 echo "Monitor: docker compose logs -f spark spark2 ssp"

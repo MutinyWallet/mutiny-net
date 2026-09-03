@@ -415,7 +415,7 @@ services:
       - bitcoind-services
       - postgres
     ports:
-      - "10010:10010"  # operator gRPC (proxied by nginx 0.spark.mutinynet.com)
+      - "127.0.0.1:10010:10010"  # operator gRPC (proxied by nginx 0.spark.mutinynet.com)
     networks:
       default:
         aliases:
@@ -448,7 +448,7 @@ services:
       - bitcoind-services
       - postgres
     ports:
-      - "10011:10011"  # operator gRPC (proxied by nginx 1.spark.mutinynet.com)
+      - "127.0.0.1:10011:10011"  # operator gRPC (proxied by nginx 1.spark.mutinynet.com)
     networks:
       default:
         aliases:
@@ -490,6 +490,9 @@ services:
       - ./ldk-server/ldk-server-config.toml:/config/ldk-server-config.toml:ro
     environment:
       - RPCPASSWORD=$RPCPASSWORD
+      # Defaults to 127.0.0.1:3536, which is unreachable from the ssp container.
+      # Host exposure stays loopback-only via the 127.0.0.1:3536 port mapping.
+      - LDK_SERVER_NODE_GRPC_SERVICE_ADDRESS=0.0.0.0:3536
   #  Spark Service Provider (self-hosted SSP; see ../mutinynet-spark).
   #  Clone mutinynet-spark next to this repo, or set MUTINYNET_SSP_REF to its
   #  path. First boot generates the SSP signing key; publish
@@ -560,6 +563,9 @@ services:
       SSP_URL: http://ssp:5000
       SIDECAR_MNEMONIC_FILE: /app/data/sidecar.mnemonic
       SIDECAR_TOKEN: $SIDECAR_TOKEN
+      # The SDK only loads /tmp/minikube-ca.pem when network==LOCAL, so on
+      # SIGNET the operators' self-signed certs must be trusted via Node.
+      NODE_EXTRA_CA_CERTS: /tmp/minikube-ca.pem
   sidecar-fund:
     container_name: "sidecar-fund"
     image: ${SIDECAR_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp-sidecar:latest}
@@ -576,6 +582,11 @@ services:
       - ~/volumes/sidecar-data:/app/data
       - ~/volumes/spark:/tls/spark0:ro
       - ~/volumes/spark2:/tls/spark1:ro
+      # Bundled faucet.mjs mines via generatetoaddress (regtest-only); on this
+      # signet that silently no-ops and deposits get claimed unconfirmed.
+      - ./sidecar-fund-faucet.signet.mjs:/app/faucet.mjs:ro
+      # Adds electrsUrl; the SDK default is unreachable from this container.
+      - ./sidecar-fund.signet.mjs:/app/fund.mjs:ro
     environment:
       SPARK_LOCAL_INGRESS_HOST: sidecar
       SPARK_NETWORK: SIGNET
@@ -588,6 +599,7 @@ services:
       BITCOIN_RPC_PASSWORD: $RPCPASSWORD
       BITCOIN_RPC_WALLET: ${BITCOIN_RPC_WALLET:-default}
       FUND_MULTIPLICITY: 3
+      NODE_EXTRA_CA_CERTS: /tmp/minikube-ca.pem
   web:
     container_name: "mempool_frontend"
     environment:

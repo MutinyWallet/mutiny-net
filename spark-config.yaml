@@ -61,7 +61,7 @@ tracing:
 knobs:
   static_values:
     spark.database.pool.min_conns: 4
-    spark.so.max_unused_deposit_addresses: 64
+    spark.so.max_unused_deposit_addresses: 512
     spark.so.enable_instant_static_deposit@REGTEST: 100
     spark.so.max_pending_instant_static_deposit_amount: 1000000
     spark.so.deposit_tree.require_prepare_binding: 0

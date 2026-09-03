@@ -10,6 +10,17 @@ FROM alpine/git AS src
 ARG SPARK_REF
 RUN git clone https://github.com/buildonspark/spark /spark \
  && cd /spark && git checkout ${SPARK_REF} && git rev-parse HEAD
+# Upstream bug: MarkKeyshareForDepositAddress carries no network field, so a
+# non-coordinator infers the network from the address prefix, testing Testnet
+# before Signet. Signet and testnet share the "tb1" HRP, so on signet the peer
+# stores deposit addresses as TESTNET while the coordinator stores SIGNET, and
+# finalize_deposit_tree_creation's NetworkEQ(SIGNET) lookup then finds nothing
+# on the peer -- no deposit can ever be claimed. Test Signet first. The greps
+# make the build fail loudly if upstream changes this line.
+RUN cd /spark && f=spark/so/handler/internal_deposit_handler.go \
+ && grep -q 'btcnetwork.Testnet, btcnetwork.Signet' "$f" \
+ && sed -i 's/btcnetwork\.Testnet, btcnetwork\.Signet/btcnetwork.Signet, btcnetwork.Testnet/' "$f" \
+ && grep -q 'btcnetwork.Signet, btcnetwork.Testnet' "$f"
 
 FROM golang:1.27-bookworm AS builder-go
 ARG BUILD_JOBS
