@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # run bitcoind
-bitcoind --daemonwait -deprecatedrpc=create_bdb
+bitcoind --daemonwait
 sleep 5
 echo "get magic"
 magic=$(cat /root/.bitcoin/signet/debug.log | grep -m1 magic)  

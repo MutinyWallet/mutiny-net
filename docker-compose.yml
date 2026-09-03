@@ -1,0 +1,727 @@
+x-logging:
+  &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "3"
+
+services:
+  # Mining-only bitcoind instance
+  bitcoind-miner:
+    container_name: "bitcoind-miner"
+    build: .
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/.bitcoin:/root/.bitcoin
+    environment:
+      UACOMMENT: $UACOMMENT
+      PRIVKEY_MODE: "legacy"
+      BLOCKPRODUCTIONDELAY: $BLOCKPRODUCTIONDELAY
+      NBITS: $NBITS
+      RPCPASSWORD: $RPCPASSWORD
+      PRIVKEY: $PRIVKEY
+      SIGNETCHALLENGE: $SIGNETCHALLENGE
+      EXTERNAL_IP: $EXTERNAL_IP
+      MINERENABLED: "1"
+      ADDNODE: "bitcoind-services:38333"  # Connect to services node
+      DBCACHE: "100"
+      COINSTATSINDEX: "0"  # Mining does not require historical UTXO statistics
+      CF_TOKEN: $CF_TOKEN
+    ports:
+      - "127.0.0.1:28332:28332"
+      - "127.0.0.1:28333:28333"
+      - "127.0.0.1:28334:28334"
+      - "127.0.0.1:38332:38332"
+      - "38333:38333"  # p2p, must stay public
+      - "127.0.0.1:38334:38334"
+
+  # Services-only bitcoind instance (no mining)
+  bitcoind-services:
+    container_name: "bitcoind-services"
+    build: .
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/.bitcoin-services:/root/.bitcoin
+    environment:
+      UACOMMENT: $UACOMMENT
+      PRIVKEY_MODE: "legacy"
+      BLOCKPRODUCTIONDELAY: $BLOCKPRODUCTIONDELAY
+      RPCPASSWORD: $RPCPASSWORD
+      SIGNETCHALLENGE: $SIGNETCHALLENGE
+      EXTERNAL_IP: $EXTERNAL_IP
+      MINERENABLED: "0"  # Disable mining
+      ADDNODE: "bitcoind-miner:38333"  # Connect to miner node
+      DBCACHE: "150"
+      COINSTATSINDEX: "0"  # Disable unused mining-statistics backfills
+    ports:
+      - "127.0.0.1:28335:28332"  # ZMQ ports on alternate host ports
+      - "127.0.0.1:28336:28333"
+      - "127.0.0.1:28337:28334"
+      - "127.0.0.1:38335:38332"  # RPC on alternate port
+      - "38336:38333"  # P2P on alternate port, must stay public
+      - "127.0.0.1:38337:38334"
+  lnd:
+    container_name: "lnd"
+    image: lightninglabs/lnd:v0.21.1-beta
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 10m
+    environment:
+      RPCPASSWORD: $RPCPASSWORD
+    command: [
+      "--bitcoin.active",
+      "--bitcoin.signet",
+      "--bitcoin.node=bitcoind",
+      "--maxpendingchannels=10",
+      "--rpclisten=0.0.0.0:10009",
+      "--restlisten=0.0.0.0:8081",
+      "--bitcoind.rpchost=bitcoind-services:38332",
+      "--bitcoind.rpcuser=bitcoin",
+      "--bitcoind.rpcpass=$RPCPASSWORD",
+      "--bitcoind.zmqpubrawblock=tcp://bitcoind-services:28332",
+      "--bitcoind.zmqpubrawtx=tcp://bitcoind-services:28333",
+      "--bitcoin.defaultchanconfs=6",
+      "--db.bolt.auto-compact",
+      "--db.prune-revocation",
+      "--alias=Faucet LND",
+      "--externalip=45.79.52.207",
+      "--externalip=gfg7fwat27mnsmlog7wbgi6a53f2b5rj56bwokcfk45bacnb4z5kt5ad.onion",
+      "--tlsextradomain=mutinynet.com",
+      "--tlsextradomain=lnd",
+      "--protocol.option-scid-alias",
+      "--protocol.wumbo-channels",
+      "--accept-keysend",
+      "--accept-amp",
+      "--enable-upfront-shutdown",
+      "--minchansize=25000",
+      "--maxchansize=100000000000000",
+      "--noseedbackup",
+      "--stagger-initial-reconnect",
+      "--gc-canceled-invoices-on-startup",
+      "--coin-selection-strategy=random",
+      "--protocol.simple-taproot-chans",
+      "--protocol.rbf-coop-close",
+      "--protocol.custom-message=513",
+    ]
+    volumes:
+      - ~/volumes/.lnd:/root/.lnd
+    ports:
+      - "9735:9735"
+      - "127.0.0.1:10009:10009"
+      - "127.0.0.1:8081:8081"  # proxied by nginx rpc.mutinynet.com
+  lndk:
+    container_name: "lndk"
+    build: ./lndk
+    restart: unless-stopped
+    user: "0:1000"
+    logging: *default-logging
+    depends_on:
+      - lnd
+    command: --address=https://lnd:10009 --cert-path=/root/.lnd/tls.cert --macaroon-path=/root/.lnd/data/chain/bitcoin/signet/admin.macaroon --log-level=trace --grpc-host=0.0.0.0
+    environment:
+      - RUST_BACKTRACE=1
+    volumes:
+      - ~/volumes/lndk:/root/.lndk
+      - ~/volumes/.lnd:/root/.lnd:ro
+  rgs_server:
+    container_name: "rgs-server"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    build:
+      context: ./rapid-gossip-sync-server
+      dockerfile: ./docker/Dockerfile.rgs
+    volumes:
+      - ~/volumes/rgs:/usr/src/app:cached
+    links:
+      - postgres
+      - bitcoind-services
+    depends_on:
+      - postgres
+    environment:
+      RAPID_GOSSIP_SYNC_SERVER_DB_HOST: postgres
+      RAPID_GOSSIP_SYNC_SERVER_DB_USER: lightning-rgs
+      RAPID_GOSSIP_SYNC_SERVER_DB_PASSWORD: $POSTGRES_PASSWORD
+      RAPID_GOSSIP_SYNC_SERVER_DB_NAME: ln_graph_sync
+      RAPID_GOSSIP_SYNC_SERVER_NETWORK: signet
+      RAPID_GOSSIP_SYNC_SERVER_SNAPSHOT_INTERVAL: 10800 # 3 hours (minimum)
+      BITCOIN_REST_DOMAIN: bitcoind-services
+      BITCOIN_REST_PORT: 38332
+      LN_PEERS: 02465ed5be53d04fde66c9418ff14a5f2267723810176c9212b722e542dc1afb1b@lnd:9735 # lnd's node id
+    entrypoint: [ "rapid-gossip-sync-server" ]
+
+  postgres:
+    container_name: "postgres"
+    image: 'postgres:17-alpine'
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    user: "0:1000"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ~/volumes/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: lightning-rgs
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+      POSTGRES_DB: ln_graph_sync
+  #  electrs:
+  #    container_name: "electrs"
+  #    build:
+  #      context: ./electrs
+  #    user: "0:1000"
+  #    logging: *default-logging
+  #    restart: always
+  #    stop_grace_period: 1m
+  #    environment:
+  #      FLAGS: '-vvvv --signet-magic cb2ddfa5 --jsonrpc-import --daemon-dir /root/.bitcoin/signet --daemon-rpc-addr bitcoind:38332 --timestamp --blocks-dir /root/.bitcoin/signet/blocks --cookie=bitcoin:$RPCPASSWORD --db-dir /root/.electrs --network signet --electrum-rpc-addr 0.0.0.0:50001 --http-addr 0.0.0.0:3003'
+  #    volumes:
+  #      - ~/volumes/electrs:/root/.electrs
+  #    ports:
+  #      - "3003:3003"
+  #      - "0.0.0.0:50001:50001"
+
+  mempool_electrs:
+    container_name: "mempool_electrs"
+    image: mempool/electrs:v3.3.0
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    entrypoint:
+      /bin/electrs
+    command: |
+      -vvvv
+      --address-search
+      --cookie bitcoin:$RPCPASSWORD
+      --network signet
+      --magic cb2ddfa5
+      --daemon-rpc-addr bitcoind-services:38332
+      --blocks-dir /root/.bitcoin/signet/blocks
+      --timestamp
+      --jsonrpc-import
+      --db-dir /root/.electrs
+      --electrum-rpc-addr 0.0.0.0:50001
+      --http-addr 0.0.0.0:3003
+      --electrum-banner "Welcome to the Mutinynet Electrum Server"
+    volumes:
+      - ~/volumes/.bitcoin-services:/root/.bitcoin:ro
+      - ~/volumes/mempool_electrs:/root/.electrs
+    ports:
+      - "127.0.0.1:3003:3003"  # proxied by nginx mutinynet.com /api
+      - "0.0.0.0:50001:50001"  # public electrum service
+
+  # Need a separate lnd instance for Cashu so the faucet can pay it/out
+  cashu-lnd:
+    container_name: "cashu-lnd"
+    image: lightninglabs/lnd:v0.21.1-beta
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 10m
+    environment:
+      RPCPASSWORD: $RPCPASSWORD
+    command: [
+      "--bitcoin.active",
+      "--bitcoin.signet",
+      "--bitcoin.node=bitcoind",
+      "--bitcoind.rpchost=bitcoind-services:38332",
+      "--bitcoind.rpcuser=bitcoin",
+      "--bitcoind.rpcpass=$RPCPASSWORD",
+      "--bitcoind.zmqpubrawblock=tcp://bitcoind-services:28332",
+      "--bitcoind.zmqpubrawtx=tcp://bitcoind-services:28333",
+      "--bitcoin.defaultchanconfs=6",
+      "--restlisten=0.0.0.0:8082",
+      "--db.bolt.auto-compact",
+      "--db.prune-revocation",
+      "--alias=Cashu LND",
+      "--tlsextradomain=cashu-lnd",
+      "--protocol.option-scid-alias",
+      "--protocol.wumbo-channels",
+      "--accept-keysend",
+      "--accept-amp",
+      "--enable-upfront-shutdown",
+      "--minchansize=25000",
+      "--maxchansize=100000000000000",
+      "--noseedbackup",
+      "--stagger-initial-reconnect",
+      "--gc-canceled-invoices-on-startup",
+      "--coin-selection-strategy=random",
+      "--protocol.simple-taproot-chans",
+      "--protocol.rbf-coop-close",
+    ]
+    ports:
+      - "127.0.0.1:8082:8082"
+    volumes:
+      - ~/volumes/.cashu-lnd:/root/.lnd
+  nutshell:
+    container_name: "nutshell"
+    image: 'cashubtc/nutshell:0.20.3'
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    user: "0:1000"
+    ports:
+      - "127.0.0.1:3338:3338"
+    environment:
+      MINT_BACKEND_BOLT11_SAT: "LndRestWallet"
+      MINT_LISTEN_HOST: "0.0.0.0"
+      MINT_LISTEN_PORT: "3338"
+      MINT_PRIVATE_KEY: $MINT_PRIVATE_KEY
+      MINT_DATABASE: "/root/.cashu/data/mint"
+      MINT_LND_REST_ENDPOINT: "https://cashu-lnd:8082"
+      MINT_LND_REST_CERT: "/root/.lnd/tls.cert"
+      MINT_LND_REST_MACAROON: "/root/.lnd/data/chain/bitcoin/signet/mint.macaroon"
+      MINT_RATE_LIMIT: "TRUE"
+      MINT_RATE_LIMIT_PROXY_TRUST: "TRUE"
+      DB_BACKUP_PATH: "/root/.cashu/backups"
+    command: [ "poetry", "run", "mint" ]
+    volumes:
+      - ~/volumes/.cashu-lnd:/root/.lnd:ro
+      - ~/volumes/nutshell:/root/.cashu
+  faucet:
+    container_name: "faucet"
+    image: ghcr.io/mutinywallet/mutinynet-faucet:master
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/faucet:/root/.faucet
+    ports:
+      - "127.0.0.1:3000:3000"
+  faucet_backend:
+    container_name: "faucet_backend"
+    image: ghcr.io/mutinywallet/mutinynet-faucet-rs:master
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      RUST_LOG: "info"
+      BITCOIN_RPC_HOST_AND_PORT: "bitcoind-miner:38332"
+      BITCOIN_RPC_USER: "bitcoin"
+      BITCOIN_RPC_PASSWORD: $RPCPASSWORD
+      NSEC: $NSEC
+      JWT_SECRET: $JWT_SECRET
+      GITHUB_CLIENT_ID: $GITHUB_CLIENT_ID
+      GITHUB_CLIENT_SECRET: $GITHUB_CLIENT_SECRET
+      NETWORK: "signet"
+      HOST: "https://faucet.mutinynet.com"
+      GRPC_PORT: "10009"
+      GRPC_HOST: "lnd"
+      TLS_CERT_PATH: "/root/.lnd/tls.cert"
+      ADMIN_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/admin.macaroon"
+      L402_ENABLED: "true"
+      L402_INVOICE_AMOUNT: "50"
+      REORG_ENABLED: "true"
+      REORG_COOLDOWN_SECONDS: "3600"
+      REORG_DB_PATH: "/root/faucet_backend/reorg.db"
+      ANALYTICS_DB_PATH: "/root/faucet_backend/analytics.db"
+      ANALYTICS_TOKEN: $ANALYTICS_TOKEN
+      USERS_DB_PATH: "/root/faucet_backend/users.db"
+      ADMIN_TOKEN: $ADMIN_TOKEN
+      MAINNET_GRPC_HOST: ${MAINNET_GRPC_HOST}
+      MAINNET_GRPC_PORT: "10069"
+      MAINNET_TLS_CERT_PATH: "/root/faucet_backend/tls.cert"
+      MAINNET_ADMIN_MACAROON_PATH: "/root/faucet_backend/reorg.macaroon"
+      ARKADE_DAEMON_URL: "http://arkade-daemon:8080"
+      ARKADE_INTERNAL_TOKEN: $ARKADE_INTERNAL_TOKEN
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/.lnd:/root/.lnd:ro
+      - ./faucet_config:/app/faucet_config:ro
+      - ~/volumes/faucet_backend:/root/faucet_backend
+    ports:
+      - "127.0.0.1:3001:3001"
+  arkade-daemon:
+    container_name: "arkade-daemon"
+    image: ghcr.io/kukks/arkade-faucet-daemon:latest
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    environment:
+      ARKADE_MNEMONIC: $ARKADE_MNEMONIC
+      ARK_SERVER_URL: "https://mutinynet.arkade.sh"
+      IS_MAINNET: "false"
+      DB_PATH: "/data/arkade-wallet.sqlite"
+      MAX_SEND: "100000"
+      MIN_BALANCE: "100000"
+      REPLENISH_AMOUNT: "1000000"
+      # Replenish from the local faucet backend on the internal network.
+      FAUCET_API: "http://faucet_backend:3001"
+      FAUCET_API_TOKEN: $ARKADE_FAUCET_TOKEN
+      INTERNAL_TOKEN: $ARKADE_INTERNAL_TOKEN
+    volumes:
+      - ~/volumes/arkade-daemon:/data
+  fortune_402:
+    container_name: "fortune_402"
+    image: ghcr.io/benthecarman/fortune-402:master
+    environment:
+      LND_ADDRESS: "https://lnd:10009"
+      LND_CERT_PATH: "/root/.lnd/tls.cert"
+      LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/fortune.macaroon"
+      INVOICE_AMOUNT_SATS: "100"
+      L402_ROOT_KEY: $L402_ROOT_KEY
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/.lnd:/root/.lnd:ro
+    ports:
+      - "127.0.0.1:3402:3402"
+  lnurl_server:
+    container_name: "lnurl_server"
+    image: ghcr.io/benthecarman/lnurl-server:master
+    environment:
+      RUST_LOG: "info"
+      LNURL_DATA_DIR: "/root/.lnurl"
+      LNURL_PORT: "3002"
+      LNURL_LND_HOST: "lnd"
+      LNURL_LND_PORT: "10009"
+      LNURL_LND_CERT_PATH: "/root/.lnd/tls.cert"
+      LNURL_LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/lnurl.macaroon"
+      LNURL_NETWORK: "signet"
+      LNURL_DOMAIN: "lnurl.mutinynet.com"
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/.lnd:/root/.lnd:ro
+      - ~/volumes/lnurl:/root/.lnurl
+    ports:
+      - "127.0.0.1:3002:3002"
+  #  Spark operators (2-of-2, current upstream SO; see spark/ + spark-config.yaml)
+  spark:
+    container_name: "spark"
+    build:
+      context: ./spark
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    depends_on:
+      - bitcoind-services
+      - postgres
+    ports:
+      - "127.0.0.1:10010:10010"  # operator gRPC (proxied by nginx 0.spark.mutinynet.com)
+    networks:
+      default:
+        aliases:
+          - spark.minikube.local
+    environment:
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - RPCPASSWORD=$RPCPASSWORD
+      - SPARK_INDEX=0
+    volumes:
+      - ~/volumes/spark:/home/spark
+      - ~/volumes/spark-shared:/home/spark-shared
+      - ./spark-config.yaml:/config/so_config.yaml:ro
+      - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
+      - ./keygen.py:/usr/local/bin/keygen.py:ro
+    entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:10010", "-tls", "-tls-no-verify"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  spark2:
+    container_name: "spark2"
+    build:
+      context: ./spark
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    depends_on:
+      - bitcoind-services
+      - postgres
+    ports:
+      - "127.0.0.1:10011:10011"  # operator gRPC (proxied by nginx 1.spark.mutinynet.com)
+    networks:
+      default:
+        aliases:
+          - spark2.minikube.local
+    environment:
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - RPCPASSWORD=$RPCPASSWORD
+      - SPARK_INDEX=1
+    volumes:
+      - ~/volumes/spark2:/home/spark
+      - ~/volumes/spark-shared:/home/spark-shared
+      - ./spark-config.yaml:/config/so_config.yaml:ro
+      - ./spark-entrypoint.sh:/usr/local/bin/spark-entrypoint.sh:ro
+      - ./keygen.py:/usr/local/bin/keygen.py:ro
+    entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:10011", "-tls", "-tls-no-verify"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  #  Lightning backend for the SSP (bitcoind backend, custom signet).
+  ldk-server:
+    container_name: "ldk-server"
+    build:
+      context: ./ldk-server
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    depends_on:
+      - bitcoind-services
+    ports:
+      - "127.0.0.1:3536:3536"  # gRPC for the SSP
+      - "9736:9735"  # Lightning P2P (offset; lnd owns 9735)
+    volumes:
+      - ~/volumes/ldk-server:/home/ldk
+      - ./ldk-server/ldk-server-config.toml:/config/ldk-server-config.toml:ro
+    environment:
+      - RPCPASSWORD=$RPCPASSWORD
+      # Defaults to 127.0.0.1:3536, which is unreachable from the ssp container.
+      # Host exposure stays loopback-only via the 127.0.0.1:3536 port mapping.
+      - LDK_SERVER_NODE_GRPC_SERVICE_ADDRESS=0.0.0.0:3536
+    healthcheck:
+      test: ["CMD-SHELL", "test -r /home/ldk/signet/api_key && ldk-server-cli --base-url localhost:3536 --api-key $$(od -A n -t x1 /home/ldk/signet/api_key | tr -d ' \\n') --tls-cert /home/ldk/tls.crt get-node-info >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+  #  Spark Service Provider. First boot generates the SSP signing key; publish
+  #  ssp_identity_pubkey from ssp:5000/health to wallet configs.
+  ssp:
+    container_name: "ssp"
+    image: ${SSP_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp:latest}
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    depends_on:
+      spark:
+        condition: service_healthy
+      spark2:
+        condition: service_healthy
+      ldk-server:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5000:5000"  # proxied by nginx ssp.mutinynet.com
+    volumes:
+      - ~/volumes/ssp-data:/data
+      - ~/volumes/ldk-server:/ldk-data:ro
+    environment:
+      SSP_LISTEN_ADDR: 0.0.0.0:5000
+      SSP_CORS_ORIGINS: ${SSP_CORS_ORIGINS:-}
+      SSP_NETWORK: SIGNET
+      SSP_DATA_DIR: /data
+      LDK_GRPC_ADDR: ldk-server:3536
+      LDK_API_KEY_FILE: /ldk-data/signet/api_key
+      LDK_TLS_CERT_FILE: /ldk-data/tls.crt
+      SSP_LN_FEE_PPM: 0
+      SSP_SWAP_FEE_SATS: 0
+      SIDECAR_URL: http://swap-sidecar:5001
+      SIDECAR_TOKEN: ${SIDECAR_TOKEN:?set SIDECAR_TOKEN}
+      # Operator set the SSP encrypts preimage shares to (lightning receive).
+      # Without it the SSP refuses to mint a claimable invoice and logs
+      # "SSP_FROST_OPERATORS unset or invalid; cannot store shares".
+      # Regenerate with ./spark-operator-pubkeys.sh after reset-spark.sh.
+      # This is empty only during the first operator boot. Set it before the
+      # SSP starts. See the boot sequence in README.md.
+      SSP_FROST_OPERATORS: ${SSP_FROST_OPERATORS:-}
+      SSP_FROST_THRESHOLD: 2
+      RUST_LOG: ${SSP_RUST_LOG:-info}
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:5000/health | grep -q '\"ldk_mode\":\"live\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+  #  Funded Spark wallet that completes SSP leaf swaps.
+  #  Fund once: docker compose run --rm sidecar-fund (needs BITCOIN_RPC_WALLET
+  #  with funds on bitcoind-services). Set SO_IDENTITY_PUBKEYS from
+  #  ./spark-operator-pubkeys.sh output after first SO boot.
+  swap-sidecar:
+    container_name: "swap-sidecar"
+    image: ${SIDECAR_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp-sidecar:latest}
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    depends_on:
+      spark:
+        condition: service_healthy
+      spark2:
+        condition: service_healthy
+      ssp:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5001:5001"
+    volumes:
+      - ~/volumes/sidecar-data:/app/data
+      - ~/volumes/spark:/tls/spark0:ro
+      - ~/volumes/spark2:/tls/spark1:ro
+    environment:
+      PORT: 5001
+      SPARK_LOCAL_INGRESS_HOST: sidecar
+      SPARK_NETWORK: SIGNET
+      SO_HOSTS: spark.minikube.local:10010,spark2.minikube.local:10011
+      SO_IDENTITY_PUBKEYS: ${SO_IDENTITY_PUBKEYS:-}
+      SSP_URL: http://ssp:5000
+      SIDECAR_MNEMONIC_FILE: /app/data/sidecar.mnemonic
+      SIDECAR_FILL_RECEIPTS_FILE: /app/data/swap-fills.json
+      SIDECAR_TOKEN: ${SIDECAR_TOKEN:?set SIDECAR_TOKEN}
+      ELECTRS_URL: ${ELECTRS_URL:-http://mempool_electrs:3003}
+      # The SDK only loads /tmp/minikube-ca.pem when network==LOCAL, so on
+      # SIGNET the operators' self-signed certs must be trusted via Node.
+      NODE_EXTRA_CA_CERTS: /tmp/minikube-ca.pem
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+  sidecar-fund:
+    container_name: "sidecar-fund"
+    image: ${SIDECAR_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp-sidecar:latest}
+    user: "0:1000"
+    logging: *default-logging
+    profiles: ["tools"]
+    depends_on:
+      spark:
+        condition: service_healthy
+      spark2:
+        condition: service_healthy
+      ssp:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/entrypoint.sh", "node", "fund.mjs"]
+    volumes:
+      - ~/volumes/sidecar-data:/app/data
+      - ~/volumes/spark:/tls/spark0:ro
+      - ~/volumes/spark2:/tls/spark1:ro
+    environment:
+      SPARK_LOCAL_INGRESS_HOST: sidecar
+      SPARK_NETWORK: SIGNET
+      SO_HOSTS: spark.minikube.local:10010,spark2.minikube.local:10011
+      SO_IDENTITY_PUBKEYS: ${SO_IDENTITY_PUBKEYS:-}
+      SSP_URL: http://ssp:5000
+      SIDECAR_MNEMONIC_FILE: /app/data/sidecar.mnemonic
+      BITCOIN_RPC_URL: http://bitcoind-services:38332
+      BITCOIN_RPC_USER: bitcoin
+      BITCOIN_RPC_PASSWORD: $RPCPASSWORD
+      BITCOIN_RPC_WALLET: ${BITCOIN_RPC_WALLET:-default}
+      # Custom signet: the SDK's built-in electrs hosts don't cover it, and
+      # MINING must stay unset so faucet.mjs polls for confirmations rather
+      # than calling generatetoaddress (which cannot sign a block here).
+      ELECTRS_URL: ${ELECTRS_URL:-http://mempool_electrs:3003}
+      # Fills consume the SMALL denominations, so a full-ladder top-up spends
+      # most of its sats on large denoms that never deplete and still only buys
+      # a couple of fills. Skew top-ups to the small end with high multiplicity:
+      # 7 denoms x 20 = 140 sends for ~2.5M sats. Note each send needs its own
+      # confirmed UTXO in BITCOIN_RPC_WALLET or bitcoind hits the 25-descendant
+      # mempool chain limit -- keep at least FUND_MULTIPLICITY * denoms UTXOs.
+      FUND_LADDER: ${FUND_LADDER:-1000,2000,4000,8000,16000,32000,64000}
+      FUND_MULTIPLICITY: ${FUND_MULTIPLICITY:-20}
+      NODE_EXTRA_CA_CERTS: /tmp/minikube-ca.pem
+  web:
+    container_name: "mempool_frontend"
+    environment:
+      MAINNET_ENABLED: "false"
+      ROOT_NETWORK: "signet"
+      FRONTEND_HTTP_PORT: "8080"
+      BACKEND_MAINNET_HTTP_HOST: "api"
+      LIGHTNING: "true"
+      MINING_DASHBOARD: "false"
+    image: mempool/frontend:v3.3.1
+    user: "0:1000"
+    logging: *default-logging
+    restart: always
+    stop_grace_period: 1m
+    command: "./wait-for db:3306 --timeout=720 -- nginx -g 'daemon off;'"
+    ports:
+      - "127.0.0.1:8080:8080"
+  api:
+    container_name: "mempool_backend"
+    environment:
+      MEMPOOL_NETWORK: "signet"
+      MEMPOOL_BACKEND: "none"
+      # Startup re-tag of 3M+ signet blocks takes minutes and blocks new-block
+      # inserts; the mining API is disabled at nginx anyway.
+      MEMPOOL_AUTOMATIC_POOLS_UPDATE: "false"
+      ELECTRUM_HOST: "electrs"
+      ELECTRUM_PORT: "50001"
+      ELECTRUM_TLS_ENABLED: "false"
+      ESPLORA_REST_API_URL: "http://electrs:3003"
+      CORE_RPC_HOST: "bitcoind-services"
+      CORE_RPC_PORT: "38332"
+      CORE_RPC_USERNAME: "bitcoin"
+      CORE_RPC_PASSWORD: $RPCPASSWORD
+      CORE_RPC_TIMEOUT: "60000"
+      DATABASE_ENABLED: "true"
+      DATABASE_HOST: "db"
+      DATABASE_DATABASE: "mempool"
+      DATABASE_USERNAME: "mempool"
+      DATABASE_PASSWORD: $MYSQL_PASSWORD
+      STATISTICS_ENABLED: "false"
+      LIGHTNING_ENABLED: "true"
+      LIGHTNING_BACKEND: "lnd"
+      LND_TLS_CERT_PATH: "/root/.lnd/tls.cert"
+      LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/readonly.macaroon"
+      LND_REST_API_URL: "https://lnd:8081"
+    image: mempool/backend:v3.3.1
+    logging: *default-logging
+    user: "0:1000"
+    restart: always
+    stop_grace_period: 1m
+    command: "./wait-for-it.sh db:3306 --timeout=720 --strict -- ./start.sh"
+    ports:
+      - "127.0.0.1:8889:8889"
+      - "127.0.0.1:8999:8999"
+    volumes:
+      - ~/volumes/mempool:/backend/cache
+      - ~/volumes/.lnd:/root/.lnd:ro
+  db:
+    container_name: "mempool_db"
+    environment:
+      MYSQL_DATABASE: "mempool"
+      MYSQL_USER: "mempool"
+      MYSQL_PASSWORD: $MYSQL_PASSWORD
+      MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
+    image: mariadb:10.11
+    command: >
+      --innodb-buffer-pool-size=512M
+      --innodb-log-file-size=256M
+      --innodb-flush-log-at-trx-commit=2
+      --innodb-flush-method=O_DIRECT
+      --innodb-io-capacity=1000
+      --max-connections=50
+      --wait-timeout=300
+      --interactive-timeout=300
+      --tmp-table-size=64M
+      --max-heap-table-size=64M
+      --key-buffer-size=32M
+    logging: *default-logging
+    user: "0:1000"
+    restart: always
+    stop_grace_period: 1m
+    volumes:
+      - ~/volumes/mysql/data:/var/lib/mysql
+  analytics:
+    container_name: "analytics"
+    image: ghcr.io/benthecarman/cf-mutinynet-traffic:latest
+    user: "0:1000"
+    restart: always
+    logging: *default-logging
+    stop_grace_period: 1m
+    ports:
+      - "127.0.0.1:8083:3000"
+    environment:
+      CF_TOKEN: $CF_TOKEN
+      ANALYTICS_TOKEN: $ANALYTICS_TOKEN
+      ADMIN_TOKEN: $ADMIN_TOKEN

@@ -1,0 +1,7 @@
+[submodule "electrs"]
+	path = electrs
+	url = https://github.com/MutinyWallet/electrs.git
+	branch = new-index
+[submodule "rapid-gossip-sync-server"]
+	path = rapid-gossip-sync-server
+	url = https://github.com/lightningdevkit/rapid-gossip-sync-server.git

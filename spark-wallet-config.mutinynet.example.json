@@ -1,0 +1,30 @@
+{
+  "_comment": "Wallet config for MutinyNet self-hosted Spark (SIGNET). sspClientOptions.identityPublicKey is the SSP identity from https://ssp.mutinynet.com/health.",
+  "network": "SIGNET",
+  "signingOperators": {
+    "0000000000000000000000000000000000000000000000000000000000000001": {
+      "id": 0,
+      "identifier": "0000000000000000000000000000000000000000000000000000000000000001",
+      "address": "https://0.spark.mutinynet.com",
+      "identityPublicKey": "02d446dcd16eef9814d6491f64898f96e70061ed06e01393e2801a2bae8d9582e5"
+    },
+    "0000000000000000000000000000000000000000000000000000000000000002": {
+      "id": 1,
+      "identifier": "0000000000000000000000000000000000000000000000000000000000000002",
+      "address": "https://1.spark.mutinynet.com",
+      "identityPublicKey": "026ee53806c9c8323d79f11b4980af3002e30040ced8c4adc34b684454121b5764"
+    }
+  },
+  "electrsUrl": "https://mutinynet.com/api",
+  "sspClientOptions": {
+    "baseUrl": "https://ssp.mutinynet.com",
+    "schemaEndpoint": "graphql/spark/rc",
+    "identityPublicKey": "0306e597d556f83e3b6f4a524c7cd84630b14ce323252d9cc1f8444a9b00a46756"
+  },
+  "expectedWithdrawBondSats": 10000,
+  "expectedWithdrawRelativeBlockLocktime": 1000,
+  "optimizationOptions": {
+    "auto": false,
+    "multiplicity": 0
+  }
+}

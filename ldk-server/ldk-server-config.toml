@@ -1,0 +1,19 @@
+# ldk-server config template for MutinyNet (envsubst by entrypoint).
+[node]
+network = "${LDK_NETWORK}"
+listening_addresses = ["0.0.0.0:9735"]
+alias = "${LDK_ALIAS}"
+
+[storage.disk]
+dir_path = "${LDK_DATA_DIR}"
+
+[log]
+level = "Info"
+
+[tls]
+hosts = ["ldk-server"]
+
+[bitcoind]
+rpc_address = "${LDK_BITCOIND_HOST}"
+rpc_user = "${LDK_BITCOIND_USER}"
+rpc_password = "${RPCPASSWORD}"

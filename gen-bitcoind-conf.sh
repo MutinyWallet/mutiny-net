@@ -15,13 +15,10 @@ fi
 echo "txindex=1
 blockfilterindex=1
 peerblockfilters=1
-coinstatsindex=1
+coinstatsindex=${COINSTATSINDEX:-1}
 dnsseed=0
 persistmempool=1
-uacomment=$UACOMMENT
-rpcthreads=$RPCTHREADS
-rpcservertimeout=$RPCSERVERTIMEOUT
-rpcworkqueue=$RPCWORKQUEUE"
+uacomment=$UACOMMENT"
 
 if [[ "$EXTERNAL_IP" != "" ]]; then
     echo $EXTERNAL_IP | tr ',' '\n' | while read ip; do
@@ -29,11 +26,23 @@ if [[ "$EXTERNAL_IP" != "" ]]; then
     done
 fi
 
+if [[ "$DBCACHE" != "" ]]; then
+echo "dbcache=$DBCACHE"
+fi
+
+if [[ "$MAXCONNECTIONS" != "" ]]; then
+echo "maxconnections=$MAXCONNECTIONS"
+fi
+
 echo "[signet]
+rest=1
 daemon=1
 listen=1
 server=1
+acceptnonstdtxn=1
+v2transport=1
 discover=1
+signetblocktime=$BLOCKPRODUCTIONDELAY
 signetchallenge=$SIGNETCHALLENGE
 zmqpubrawblock=$ZMQPUBRAWBLOCK
 zmqpubrawtx=$ZMQPUBRAWTX
@@ -42,13 +51,14 @@ rpcbind=$RPCBIND
 rpcallowip=$RPCALLOWIP
 whitelist=$WHITELIST
 fallbackfee=0.0002
-acceptnonstdtxn=1
-v2transport=1
-minrelaytxfee=0.0
-blockmintxfee=0.0
-dustRelayFee=0.0"
+minrelaytxfee=0.00000100
+datacarriersize=100000"
 
-if [[ "$ADDNODE" != "" ]]; then
+if [[ "$CONNECTNODE" != "" ]]; then
+    echo $CONNECTNODE | tr ',' '\n' | while read node; do
+        echo "connect=$node"
+    done
+elif [[ "$ADDNODE" != "" ]]; then
     echo $ADDNODE | tr ',' '\n' | while read node; do
         echo "addnode=$node"
     done

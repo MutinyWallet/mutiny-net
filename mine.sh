@@ -1,8 +1,23 @@
 #!/bin/bash
+set -Eeuo pipefail
+# Define mining constants
+CLI="bitcoin-cli -datadir=${BITCOIN_DIR} -rpcwallet=custom_signet"
+GRIND="bitcoin-util grind"
+
 NBITS=${NBITS:-"1e0377ae"} #minimum difficulty in signet
 
+# UTXO consolidation interval
+CONSOLIDATE_INTERVAL=${CONSOLIDATE_INTERVAL:-10}
+
+echo "Waiting until Chain tip age is < $CHAIN_TIP_AGE seconds before mining start..."
+wait_chain_sync.sh $CHAIN_TIP_AGE
+
 while true; do
-    ADDR=${MINETO:-$(bitcoin-cli getnewaddress)}
+    if [[ -f "${BITCOIN_DIR}/MINE_ADDRESS.txt" ]]; then
+        ADDR=$(cat ~/.bitcoin/MINE_ADDRESS.txt)
+    else
+        ADDR=${MINETO:-$(bitcoin-cli -rpcwallet=custom_signet getnewaddress)}
+    fi
     if [[ -f "${BITCOIN_DIR}/BLOCKPRODUCTIONDELAY.txt" ]]; then
         BLOCKPRODUCTIONDELAY_OVERRIDE=$(cat ~/.bitcoin/BLOCKPRODUCTIONDELAY.txt)
         echo "Delay OVERRIDE before next block" $BLOCKPRODUCTIONDELAY_OVERRIDE "seconds."
@@ -14,6 +29,17 @@ while true; do
             sleep $BLOCKPRODUCTIONDELAY
         fi
     fi
-    echo "Mine To:" $ADDR
-    miner --cli="bitcoin-cli" generate --grind-cmd="bitcoin-util grind" --address=$ADDR --nbits=$NBITS --set-block-time=$(date +%s)
+    #echo "Mine To:" $ADDR --addr=$ADDR
+    miner --debug --cli="$CLI" generate --grind-cmd="$GRIND" --addr=$ADDR --nbits=$NBITS  --set-block-time=$(date +%s) || true
+
+    # Purge Cloudflare cache for tip height
+    purge-tip.sh 2>/dev/null &
+
+    # Check block count and consolidate UTXOs every N blocks
+    BLOCK_COUNT=$($CLI getblockcount)
+    if [ $((BLOCK_COUNT % CONSOLIDATE_INTERVAL)) -eq 0 ]; then
+        echo "Consolidating UTXOs at block $BLOCK_COUNT..."
+        consolidate_utxos.sh || echo "Warning: UTXO consolidation failed"
+    fi
+
 done
