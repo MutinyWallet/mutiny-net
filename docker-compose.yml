@@ -432,7 +432,14 @@ services:
       - ./keygen.py:/usr/local/bin/keygen.py:ro
     entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:10010", "-tls", "-tls-no-verify"]
+      test:
+        - CMD-SHELL
+        - >-
+          grpc_health_probe -addr=localhost:10010 -tls -tls-no-verify &&
+          PGPASSWORD="$$POSTGRES_PASSWORD" psql -h postgres
+          -U lightning-rgs -d sparkoperator_0 -tAc
+          "SELECT count(*) FROM signing_keyshares WHERE status = 'AVAILABLE';"
+          | grep -Eq '[1-9]'
       interval: 30s
       timeout: 10s
       retries: 3
@@ -465,7 +472,14 @@ services:
       - ./keygen.py:/usr/local/bin/keygen.py:ro
     entrypoint: ["/usr/local/bin/spark-entrypoint.sh"]
     healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=localhost:10011", "-tls", "-tls-no-verify"]
+      test:
+        - CMD-SHELL
+        - >-
+          grpc_health_probe -addr=localhost:10011 -tls -tls-no-verify &&
+          PGPASSWORD="$$POSTGRES_PASSWORD" psql -h postgres
+          -U lightning-rgs -d sparkoperator_1 -tAc
+          "SELECT count(*) FROM signing_keyshares WHERE status = 'AVAILABLE';"
+          | grep -Eq '[1-9]'
       interval: 30s
       timeout: 10s
       retries: 3
