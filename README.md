@@ -112,3 +112,34 @@ And then restart the services:
 ```bash
 docker-compose up -d
 ```
+
+## Spark (self-hosted operator + SSP)
+
+The `spark`, `spark2`, `ldk-server`, `ssp`, `swap-sidecar` services run a
+current upstream Spark Operator pair plus the self-hosted SSP stack from
+`../mutinynet-spark` (clone it next to this repo, or set `MUTINYNET_SSP_REF`).
+
+Boot order:
+
+```bash
+docker compose up -d bitcoind-services postgres
+docker compose up -d spark spark2          # wait healthy (~5-10 min first build)
+./spark-operator-pubkeys.sh                # -> set SO_IDENTITY_PUBKEYS in .env, then:
+docker compose up -d ssp swap-sidecar ldk-server
+curl http://127.0.0.1:5000/health          # publish ssp_identity_pubkey to wallets
+docker compose run --rm sidecar-fund       # fund swap liquidity (needs BITCOIN_RPC_WALLET with funds)
+```
+
+Wallets use `spark-wallet-config.mutinynet.example.json` (SIGNET, custom SOs,
+`https://mutinynet.com/api` electrs, `https://ssp.mutinynet.com` SSP).
+Expose the SSP via nginx: copy `nginx/ssp.mutinynet.com` into place and reload.
+
+Notes:
+
+* SO identity keys persist in `~/volumes/spark[N]`; SSP key + sqlite in
+  `~/volumes/ssp-data`; sidecar mnemonic in `~/volumes/sidecar-data`.
+* `reset-spark.sh` wipes operator/SSP state (`--full` also clears ldk-server).
+* ldk-server has no custom-signet flag: if it rejects the MutinyNet genesis,
+  the SSP stays in fake Lightning mode (`ldk_mode` in `/health`).
+* LDK channels: fund the ldk-server on-chain wallet, then open channels with
+  `ldk-server-cli` (see `../mutinynet-spark/deploy/channels.sh`).

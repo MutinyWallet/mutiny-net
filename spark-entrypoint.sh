@@ -1,230 +1,144 @@
 #!/bin/bash
+# Spark Operator entrypoint for MutinyNet (2 operators, current upstream SO).
+# Per-operator state lives in /home/spark (volume ~/volumes/spark[N]).
+# Rendezvous between operators happens in /home/spark-shared (shared volume).
 set -e
 
-echo "=== Starting Spark Services ==="
+INDEX=${SPARK_INDEX:-0}
+PORT=$((10010 + INDEX))
+SOCKET_PATH="/tmp/frost_${INDEX}.sock"
+HOME_DIR="/home/spark"
+SHARED_DIR="/home/spark-shared"
+DB_BASE="postgresql://lightning-rgs:${POSTGRES_PASSWORD}@postgres:5432"
+OPERATOR_DB="sparkoperator_${INDEX}"
+EPHEMERAL_DB="spark_ephemeral_${INDEX}"
 
-# Install required packages if not present
-if ! python3 -c "import ecdsa" 2>/dev/null || ! command -v psql >/dev/null; then
-    echo "Installing required packages..."
-    apt-get update -qq
-    apt-get install -y python3-ecdsa postgresql-client
-fi
+mkdir -p "$HOME_DIR" "$SHARED_DIR" /tmp
 
-# Create socket directory
-mkdir -p /tmp
-
-# Create data directory
-mkdir -p /home/spark/data
-
-# Function to wait for database to be ready
 wait_for_db() {
-    echo "Waiting for database to be ready..."
-    # Simple approach: try to connect to the database
-    while ! timeout 5 bash -c "</dev/tcp/postgres/5432" >/dev/null 2>&1; do
-        echo "Database not ready, waiting..."
+    echo "Waiting for database..."
+    while ! timeout 5 bash -c "</dev/tcp/postgres/5432" >/dev/null 2>&1; do sleep 2; done
+    echo "Database ready"
+}
+
+create_databases() {
+    for db in "$OPERATOR_DB" "$EPHEMERAL_DB"; do
+        echo "Creating database $db (if missing)..."
+        PGPASSWORD="$POSTGRES_PASSWORD" psql -h postgres -U lightning-rgs -d postgres \
+            -c "CREATE DATABASE $db;" 2>/dev/null || echo "$db exists"
+    done
+}
+
+run_migrations() {
+    echo "Running migrations for $OPERATOR_DB..."
+    atlas migrate apply --dir "file:///opt/spark/migrations" \
+        --url "postgresql://lightning-rgs:${POSTGRES_PASSWORD}@postgres:5432/${OPERATOR_DB}?sslmode=disable"
+    echo "Running ephemeral migrations for $EPHEMERAL_DB..."
+    atlas migrate apply --dir "file:///opt/spark/ephemeral_migrations" \
+        --url "postgresql://lightning-rgs:${POSTGRES_PASSWORD}@postgres:5432/${EPHEMERAL_DB}?sslmode=disable"
+}
+
+ensure_identity() {
+    local key_file="$HOME_DIR/operator_${INDEX}.key"
+    if [ ! -f "$key_file" ]; then
+        echo "Generating operator identity key..."
+        python3 /usr/local/bin/keygen.py > "$HOME_DIR/keypair_${INDEX}.txt"
+        grep "PRIVATE:" "$HOME_DIR/keypair_${INDEX}.txt" | cut -d: -f2 > "$key_file"
+        chmod 600 "$key_file"
+    fi
+    local pubkey
+    pubkey=$(grep "PUBLIC:" "$HOME_DIR/keypair_${INDEX}.txt" | cut -d: -f2)
+    echo "$pubkey" > "$SHARED_DIR/pubkey_${INDEX}"
+    echo "Operator $INDEX identity: $pubkey"
+}
+
+# Both operators publish their pubkeys to the shared volume, then each builds
+# the same operators.json. (The old script hardcoded operator 0's pubkey.)
+rendezvous_operators() {
+    echo "Waiting for peer operator pubkey..."
+    for i in $(seq 1 60); do
+        if [ -f "$SHARED_DIR/pubkey_0" ] && [ -f "$SHARED_DIR/pubkey_1" ]; then break; fi
         sleep 2
     done
-    echo "Database connection is ready!"
+    if [ ! -f "$SHARED_DIR/pubkey_0" ] || [ ! -f "$SHARED_DIR/pubkey_1" ]; then
+        echo "ERROR: peer pubkey did not appear in $SHARED_DIR"
+        exit 1
+    fi
+    local pub0 pub1
+    pub0=$(cat "$SHARED_DIR/pubkey_0"); pub1=$(cat "$SHARED_DIR/pubkey_1")
+    cat > "$HOME_DIR/operators.json" <<EOF
+[
+  {
+    "id": 0,
+    "address": "spark:10010",
+    "external_address": "spark:10010",
+    "identity_public_key": "$pub0",
+    "cert_path": "$HOME_DIR/server.crt"
+  },
+  {
+    "id": 1,
+    "address": "spark2:10011",
+    "external_address": "spark2:10011",
+    "identity_public_key": "$pub1",
+    "cert_path": "$HOME_DIR/server.crt"
+  }
+]
+EOF
+    echo "operators.json ready"
 }
 
-# Function to create operator database
-create_operator_database() {
-    echo "Creating operator database..."
-    # Extract database name from URL for creation
-    local db_name=$(echo "$DATABASE_URL" | sed 's/.*\/\([^?]*\).*/\1/')
-    local base_url=$(echo "$DATABASE_URL" | sed 's/\/[^\/]*?/\/postgres?/')
-
-    echo "Creating database: $db_name"
-    # Use psql to create the database if it doesn't exist
-    PGPASSWORD=docker psql -h postgres -U lightning-rgs -d postgres -c "CREATE DATABASE $db_name;" 2>/dev/null || echo "Database may already exist"
-    echo "Database creation completed!"
+ensure_tls_cert() {
+    if [ -f "$HOME_DIR/server.crt" ] && [ -f "$HOME_DIR/server.key" ]; then
+        echo "TLS cert exists"
+        return
+    fi
+    echo "Generating TLS cert..."
+    openssl genrsa -out "$HOME_DIR/server.key" 2048 2>/dev/null
+    openssl req -new -x509 -key "$HOME_DIR/server.key" -out "$HOME_DIR/server.crt" \
+        -days 3650 -subj "/CN=spark-$INDEX" \
+        -addext "subjectAltName = DNS:spark,DNS:spark2,DNS:localhost,DNS:spark.minikube.local,DNS:spark2.minikube.local,DNS:0.spark.mutinynet.com,DNS:1.spark.mutinynet.com"
 }
 
-# Function to run database migrations
-run_migrations() {
-    echo "Running database migrations..."
-    atlas migrate apply --dir "file:///opt/spark/migrations" --url "$DATABASE_URL"
-    echo "Database migrations completed!"
-}
-
-# Function to start frost signer
 start_frost_signer() {
-    local index=${SPARK_INDEX:-0}
-    local signer_socket="/tmp/frost_${index}.sock"
-    
-    echo "Starting Frost signer..."
-    echo "Signer socket: $signer_socket"
-    spark-frost-signer -u $signer_socket &
+    echo "Starting frost signer on $SOCKET_PATH..."
+    spark-frost-signer -u "$SOCKET_PATH" &
     SIGNER_PID=$!
-    echo "Frost signer started with PID: $SIGNER_PID"
-    
-    # Wait a moment for signer to start
-    sleep 2
-    
-    # Check if signer is still running
-    if ! kill -0 $SIGNER_PID 2>/dev/null; then
-        echo "ERROR: Frost signer failed to start"
-        exit 1
-    fi
+    for i in $(seq 1 30); do
+        [ -S "$SOCKET_PATH" ] && break
+        kill -0 "$SIGNER_PID" 2>/dev/null || { echo "Frost signer died"; exit 1; }
+        sleep 1
+    done
+    [ -S "$SOCKET_PATH" ] || { echo "Frost signer socket timeout"; exit 1; }
 }
 
-# Function to create identity key and operators config
-create_identity_and_config() {
-    local index=${SPARK_INDEX:-0}
-    local key_file="/home/spark/operator_${index}.key"
-    local operators_file="/home/spark/operators.json"
-    local keypair_file="/home/spark/keypair_${index}.txt"
-    
-    if [ ! -f "$keypair_file" ]; then
-        echo "Generating new secp256k1 key pair..."
-        echo "Testing keygen.py script..."
-        python3 /usr/local/bin/keygen.py 2>&1 | tee "$keypair_file"
-        local exit_code=$?
-        echo "Keygen exit code: $exit_code"
-        if [ $exit_code -ne 0 ]; then
-            echo "ERROR: Failed to generate key pair"
-            echo "Keygen output:"
-            cat "$keypair_file"
-            exit 1
-        fi
-        echo "New key pair generated"
-    else
-        echo "Using existing key pair"
-    fi
-    
-    # Debug: show contents of keypair file
-    echo "Contents of keypair file:"
-    cat "$keypair_file"
-
-    # Extract keys from generated file
-    local private_key=$(grep "PRIVATE:" "$keypair_file" | cut -d: -f2)
-    local public_key=$(grep "PUBLIC:" "$keypair_file" | cut -d: -f2)
-    
-    echo "Extracted private key: '$private_key'"
-    echo "Extracted public key: '$public_key'"
-    
-    if [ -z "$private_key" ] || [ -z "$public_key" ]; then
-        echo "ERROR: Failed to extract keys from keypair file"
-        echo "Keypair file contents:"
-        cat "$keypair_file"
-        exit 1
-    fi
-    
-    # Create private key file
-    echo "$private_key" > "$key_file"
-    chmod 600 "$key_file"
-    
-    echo "Creating operators configuration..."
-    if [ "$index" = "0" ]; then
-        # Generate second operator's key for the JSON (using a different seed)
-        local public_key_2=$(python3 /usr/local/bin/keygen.py | grep "PUBLIC:" | cut -d: -f2)
-        cat > "$operators_file" << EOF
-[
-  {
-    "id": 0,
-    "address": "0.0.0.0:10009",
-    "external_address": "spark:10009",
-    "address_dkg": "spark:10009",
-    "identity_public_key": "$public_key"
-  },
-  {
-    "id": 1,
-    "address": "0.0.0.0:10010",
-    "external_address": "spark2:10010", 
-    "address_dkg": "spark2:10010",
-    "identity_public_key": "$public_key_2"
-  }
-]
-EOF
-    else
-        # For operator 1, create the same operators.json with both operators
-        # But we need to read operator 0's public key from shared config
-        cat > "$operators_file" << EOF
-[
-  {
-    "id": 0,
-    "address": "0.0.0.0:10009",
-    "external_address": "spark:10009",
-    "address_dkg": "spark:10009", 
-    "identity_public_key": "0322ca18fc489ae25418a0e768273c2c61cabb823edfb14feb891e9bec62016510"
-  },
-  {
-    "id": 1,
-    "address": "0.0.0.0:10010", 
-    "external_address": "spark2:10010",
-    "address_dkg": "spark2:10010",
-    "identity_public_key": "$public_key"
-  }
-]
-EOF
-    fi
-    echo "Operators config created"
-}
-
-# Function to create final config with substitutions
-create_final_config() {
-    local final_config="/home/spark/so_config.yaml"
-    echo "Creating final config with environment substitutions..."
-    
-    # Replace environment variables in config
-    envsubst < /config/so_config.yaml > "$final_config"
-    echo "Final config created at $final_config"
-}
-
-# Function to start spark operator
-start_spark_operator() {
-    local index=${SPARK_INDEX:-0}
-    local port=$((10009 + index))
-    local key_file="/home/spark/operator_${index}.key"
-    local signer_socket="unix:///tmp/frost_${index}.sock"
-    
-    echo "Starting Spark operator..."
-    echo "Operator index: $index"
-    echo "Port: $port"
-    echo "Database URL being passed: '$DATABASE_URL'"
-    echo "Database URL starts with postgresql: $(echo "$DATABASE_URL" | grep -q "^postgresql" && echo "YES" || echo "NO")"
-    echo "Config file database section:"
-    grep -A 10 "database:" /home/spark/so_config.yaml
-    
-    echo "Starting with command:"
-    echo "spark-operator -config /home/spark/so_config.yaml -index $index -port $port -database '$DATABASE_URL' -signer $signer_socket -key $key_file -operators /home/spark/operators.json -threshold 2 -supported-networks regtest -local -log-level debug"
-    
-    exec spark-operator \
-        -config /home/spark/so_config.yaml \
-        -index $index \
-        -port $port \
-        -database "$DATABASE_URL" \
-        -signer $signer_socket \
-        -key $key_file \
-        -operators /home/spark/operators.json \
-        -threshold 2 \
-        -supported-networks regtest \
-        -local \
-        -log-level debug
-}
-
-# Function to cleanup on exit
 cleanup() {
-    echo "Shutting down services..."
-    if [ ! -z "$SIGNER_PID" ]; then
-        kill $SIGNER_PID 2>/dev/null || true
-    fi
+    [ -n "$SIGNER_PID" ] && kill "$SIGNER_PID" 2>/dev/null || true
     exit 0
 }
-
-# Set up signal handling
 trap cleanup SIGTERM SIGINT
 
-# Main execution
-echo "DATABASE_URL: $DATABASE_URL"
-
-# Wait for database and run migrations
+echo "=== Spark operator $INDEX ==="
 wait_for_db
-create_operator_database
+create_databases
 run_migrations
-
-# Start services
-create_identity_and_config
-create_final_config
+ensure_identity
+rendezvous_operators
+[ -f /config/so_config.yaml ] && envsubst < /config/so_config.yaml > "$HOME_DIR/so_config.yaml"
+ensure_tls_cert
 start_frost_signer
-start_spark_operator
+
+echo "Starting spark-operator on port $PORT..."
+exec spark-operator \
+    -config "$HOME_DIR/so_config.yaml" \
+    -index "$INDEX" \
+    -key "$HOME_DIR/operator_${INDEX}.key" \
+    -operators "$HOME_DIR/operators.json" \
+    -threshold 2 \
+    -signer "unix://$SOCKET_PATH" \
+    -port "$PORT" \
+    -database "${DB_BASE}/${OPERATOR_DB}?sslmode=disable" \
+    -ephemeral-database "${DB_BASE}/${EPHEMERAL_DB}?sslmode=disable" \
+    -server-cert "$HOME_DIR/server.crt" \
+    -server-key "$HOME_DIR/server.key" \
+    -supported-networks signet \
+    -local

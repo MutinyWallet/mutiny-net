@@ -1,9 +1,12 @@
+# Spark Operator config for MutinyNet (custom signet).
+# Env-substituted by spark-entrypoint.sh (envsubst): ${RPCPASSWORD}.
+# Schema follows upstream so/operator config (see mutinynet-spark e2e/upstream).
 dkg:
-  min_available_keys: 1  # Two node deployment
+  min_available_keys: 1 # Two operator deployment
 
 bitcoind:
-  regtest:
-    network: regtest
+  signet:
+    network: signet
     host: bitcoind-services:38332
     rpcuser: bitcoin
     rpcpassword: ${RPCPASSWORD}
@@ -12,34 +15,18 @@ bitcoind:
 token:
   disconnect_lrc20_node: true
 
-database:
-  url: $DATABASE_URL
-  pool_min_conns: 4
-  pool_max_conns: 32
-  pool_max_conn_lifetime: 5m
-  pool_max_conn_idle_time: 30s
-  pool_health_check_period: 15s
-
-# Two operator configuration for DKG
-operators:
-  - address: "0.0.0.0:10009"
-    external_address: "spark:10009"
-    address_dkg: "spark:10009"
-    identity_public_key: "0322ca18fc489ae25418a0e768273c2c61cabb823edfb14feb891e9bec62016510"
-  - address: "0.0.0.0:10010"  
-    external_address: "spark2:10010"
-    address_dkg: "spark2:10010"
-    identity_public_key: "0322ca18fc489ae25418a0e768273c2c61cabb823edfb14feb891e9bec62016511"
-
-# Frost signer configuration (will be substituted by entrypoint)
-frost:
-  signer_socket: "${FROST_SIGNER_SOCKET}"
+grpc:
+  server_connection_timeout: 5s
+  server_keepalive_time: 300s
+  server_keepalive_timeout: 20s
+  server_unary_handler_timeout: 60s
+  client_timeout: 20s
 
 lrc20:
-  regtest:
+  signet:
     disablerpcs: true
     disablel1: true
-    network: regtest
+    network: signet
     host: 127.0.0.1:18530
     withdrawbondsats: 10000
     withdrawrelativeblocklocktime: 1000
@@ -51,6 +38,13 @@ service_authz:
   ip_allowlist: []
 
 xff_client_ip_position: 0
+
+rate_limiter:
+  enabled: true
+  window: 60s
+  max_requests: 1000
+  methods: []
+
 return_detailed_errors: true
 return_detailed_panic_errors: true
 
@@ -63,3 +57,27 @@ tracing:
     per_span_sampling_rates: {}
     allow_list: []
     block_list: []
+
+knobs:
+  static_values:
+    spark.database.pool.min_conns: 4
+    spark.so.max_unused_deposit_addresses: 64
+    spark.so.enable_instant_static_deposit@REGTEST: 100
+    spark.so.max_pending_instant_static_deposit_amount: 1000000
+    spark.so.deposit_tree.require_prepare_binding: 0
+    spark.so.grpc.server.stream_heartbeat.enabled: 100
+    spark.so.shutdown_hodl_invoices: 0
+    spark.so.lightning.receive_sender_allowlist.enabled: 0
+    spark.so.mpc_transfer.enabled: 0
+    spark.so.use_batched_ancestor_chain: 100
+    spark.so.initiate_preimage_swap_v4.enabled: 1
+    spark.so.lightning.enforce_htlc_refund_timelock_floor: 1
+    spark.so.use_consensus_initiate_counter_transfer: 1
+    spark.so.use_consensus_initiate_swap_primary_transfer: 1
+    spark.so.enable_partner_jwt: 1
+    spark.so.tokens.allowances_enabled: 1
+    spark.so.tokens.enable_justice_transactions: 1
+    spark.so.tokens.l1_exit_withdrawals_enabled: 1
+    spark.so.tokens.token_transaction_v3_enabled: 100
+    spark.so.flow_execution.stuck_threshold_seconds: 300
+    spark.so.flow_execution.coordinator_stall_threshold_seconds: 600
