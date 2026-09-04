@@ -4,7 +4,7 @@
 # required by a self-hosted SSP.
 # Override the source and pin with build arguments.
 ARG SPARK_REPO=https://github.com/benthecarman/spark
-ARG SPARK_REF=1adb6ddb981233173282b5fabeff3cdd2c6ab264
+ARG SPARK_REF=dad8bc6cf109b5946eec6860fb84bf247c8cae98
 # Build parallelism is capped: this host runs bitcoind alongside the build and
 # a full-width build OOMs it. Raise BUILD_JOBS on a machine with more headroom.
 ARG BUILD_JOBS=2
