@@ -114,20 +114,39 @@ EOF
 }
 
 ensure_tls_cert() {
-    if [ -f "$HOME_DIR/server.crt" ] && [ -f "$HOME_DIR/server.key" ]; then
-        echo "TLS cert exists"
+    local cert="$HOME_DIR/server.crt"
+    local key="$HOME_DIR/server.key"
+    local tmp_cert="${cert}.tmp"
+    local tmp_key="${key}.tmp"
+    if [ -f "$cert" ] && [ -f "$key" ] \
+    && openssl x509 -in "$cert" -noout -ext basicConstraints 2>/dev/null \
+        | grep -q "CA:FALSE"; then
+        echo "TLS server cert exists"
     else
-        echo "Generating TLS cert..."
-        openssl genrsa -out "$HOME_DIR/server.key" 2048 2>/dev/null
-        openssl req -new -x509 -key "$HOME_DIR/server.key" -out "$HOME_DIR/server.crt" \
+        if [ -f "$cert" ] && [ -f "$key" ]; then
+            echo "Rotating legacy CA-marked TLS cert..."
+            [ -f "${cert}.legacy-ca" ] || cp -p "$cert" "${cert}.legacy-ca"
+            [ -f "${key}.legacy-ca" ] || cp -p "$key" "${key}.legacy-ca"
+        else
+            echo "Generating TLS server cert..."
+        fi
+        openssl genrsa -out "$tmp_key" 2048 2>/dev/null
+        openssl req -new -x509 -key "$tmp_key" -out "$tmp_cert" \
             -days 3650 -subj "/CN=spark-$INDEX" \
-            -addext "subjectAltName = DNS:spark,DNS:spark2,DNS:localhost,DNS:spark.minikube.local,DNS:spark2.minikube.local,DNS:0.spark.mutinynet.com,DNS:1.spark.mutinynet.com"
+            -addext "subjectAltName = DNS:spark,DNS:spark2,DNS:localhost,DNS:spark.minikube.local,DNS:spark2.minikube.local,DNS:0.spark.mutinynet.com,DNS:1.spark.mutinynet.com" \
+            -addext "basicConstraints = critical,CA:FALSE" \
+            -addext "keyUsage = critical,digitalSignature,keyEncipherment" \
+            -addext "extendedKeyUsage = serverAuth"
+        mv "$tmp_key" "$key"
+        mv "$tmp_cert" "$cert"
     fi
     # Publish our cert to the shared volume. Each operator's cert is self-signed,
     # so the peer must trust *that* file directly -- pointing both operators at
     # their own server.crt makes DKG fail with "certificate signed by unknown
     # authority".
-    cp "$HOME_DIR/server.crt" "$SHARED_DIR/server_${INDEX}.crt"
+    cp "$cert" "$SHARED_DIR/server_${INDEX}.crt.tmp"
+    mv "$SHARED_DIR/server_${INDEX}.crt.tmp" \
+        "$SHARED_DIR/server_${INDEX}.crt"
 }
 
 start_frost_signer() {

@@ -1,14 +1,17 @@
 # Self-contained Spark Operator image for MutinyNet.
-# Clones pinned upstream (buildonspark/spark) and builds SO + frost signer.
-# Override the pin with --build-arg SPARK_REF=<sha>.
-ARG SPARK_REF=0b3a32a05c9ac06cc411683551dd1f1bde9d0caa
+# Clones the pinned Spark fork and builds the SO and frost signer. The fork
+# exposes the authenticated counter-swap RPC required by a self-hosted SSP.
+# Override the source and pin with build arguments.
+ARG SPARK_REPO=https://github.com/benthecarman/spark
+ARG SPARK_REF=06614d2e3535385f15aef3749b2c8a780f679ebc
 # Build parallelism is capped: this host runs bitcoind alongside the build and
 # a full-width build OOMs it. Raise BUILD_JOBS on a machine with more headroom.
 ARG BUILD_JOBS=2
 
 FROM alpine/git AS src
+ARG SPARK_REPO
 ARG SPARK_REF
-RUN git clone https://github.com/buildonspark/spark /spark \
+RUN git clone ${SPARK_REPO} /spark \
  && cd /spark && git checkout ${SPARK_REF} && git rev-parse HEAD
 # Upstream bug: MarkKeyshareForDepositAddress carries no network field, so a
 # non-coordinator infers the network from the address prefix, testing Testnet

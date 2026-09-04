@@ -1,6 +1,6 @@
 #!/bin/bash
 # Print the operator-derived env for .env:
-#   SO_IDENTITY_PUBKEYS  - swap sidecar (comma-separated pubkeys)
+#   SO_IDENTITY_PUBKEYS  - embedded SSP wallet (comma-separated pubkeys)
 #   SSP_FROST_OPERATORS  - SSP (JSON; used to encrypt preimage shares per SO)
 # Run after spark/spark2 first boot (keys persist in ~/volumes/spark[N]).
 # Re-run after reset-spark.sh: the operator identities are regenerated.

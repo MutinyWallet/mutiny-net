@@ -117,11 +117,10 @@ docker-compose up -d
 
 ## Spark (self-hosted operator + SSP)
 
-The `spark`, `spark2`, `ldk-server`, `ssp`, and `swap-sidecar` services run a
-2-of-2 Spark operator set and the MutinyNet SSP. The operator and LDK images
-build from pinned upstream commits. The SSP and sidecar use published images.
-Set `SSP_IMAGE` and `SIDECAR_IMAGE` to tested `sha-*` tags for a production
-release.
+The `spark`, `spark2`, `ldk-server`, and `ssp` services run a 2-of-2 Spark
+operator set and the MutinyNet SSP. The SSP embeds its funded Breez Spark
+wallet, so there is no JavaScript sidecar. The operator and LDK images build
+from pinned commits. Compose pins the SSP image to a tested `sha-*` tag.
 
 Boot order:
 
@@ -129,10 +128,18 @@ Boot order:
 docker compose up -d bitcoind-services postgres
 docker compose up -d --build --wait spark spark2
 ./spark-operator-pubkeys.sh                # copy both lines to .env
-docker compose pull ssp swap-sidecar
-docker compose up -d --build --wait ldk-server ssp swap-sidecar
+install -d -m 700 ~/volumes/ssp-data
+# Existing deployments only: preserve the funded wallet identity.
+if [ ! -s ~/volumes/ssp-data/spark.mnemonic ]; then
+  test -s ~/volumes/sidecar-data/sidecar.mnemonic
+  install -m 600 ~/volumes/sidecar-data/sidecar.mnemonic \
+    ~/volumes/ssp-data/spark.mnemonic
+fi
+docker compose pull ssp
+docker compose build ldk-server
+docker compose up -d --no-build --wait ldk-server ssp
 curl --fail http://127.0.0.1:5000/health   # ldk_mode must be "live"
-docker compose run --rm sidecar-fund
+node --env-file=.env fund-ssp.mjs
 ```
 
 Wallets use `spark-wallet-config.mutinynet.example.json` (SIGNET, custom SOs,
@@ -143,15 +150,22 @@ SSP through `nginx/ssp.mutinynet.com` and reload nginx.
 
 Notes:
 
-* Set `SIDECAR_TOKEN` before you run any Compose command. Back up the SSP key,
-  database, sidecar mnemonic, and LDK data in `~/volumes`.
+* Set `SPARK_ADMIN_TOKEN` before you start the SSP. Back up `ssp-data`, which
+  contains the SSP database and Spark mnemonic, plus the LDK data.
+* Existing sidecar deployments must copy `sidecar.mnemonic` as shown above.
+* The first operator restart after this update rotates legacy TLS certificates
+  that were marked as certificate authorities. The entrypoint keeps one
+  `.legacy-ca` backup beside each old certificate and key.
+  Keep the old file offline until the new SSP passes live transfer tests.
+* Compose sets `SPARK_MNEMONIC_REQUIRED=1`, so startup fails if the wallet key
+  is absent. Change it only for the first boot of a new, unfunded SSP wallet.
 * `SSP_FROST_OPERATORS` is required for Lightning receives. Do not start the
   SSP until you copy the complete helper output to `.env`.
 * The SSP does not use fake Lightning in production. Its `/health` response
   must show `"ldk_mode":"live"`.
 * Fund the LDK on-chain wallet and open channels with `ldk-server-cli`.
   Receives need inbound capacity. Sends need outbound capacity.
-* Lightning receives use exact sidecar leaves. Keep common invoice amounts in
-  the funding ladder and monitor the sidecar `/health` `needsTopup` value.
+* Lightning receives use exact SSP wallet leaves. Keep common invoice amounts
+  in the funding ladder. Monitor `/health` values under `spark`.
 * `reset-spark.sh` asks for confirmation and deletes all operator, SSP, and
-  sidecar state. `--full` also deletes the LDK wallet and channel state.
+  embedded-wallet state. `--full` also deletes LDK wallet and channel state.

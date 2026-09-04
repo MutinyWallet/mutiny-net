@@ -1,5 +1,5 @@
 #!/bin/bash
-# Delete the Spark, SSP, and sidecar state. LDK data is kept by default.
+# Delete the Spark operator and SSP wallet state. LDK data is kept by default.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -31,7 +31,7 @@ case "$volume_root" in
         ;;
 esac
 
-targets=(spark spark2 spark-shared ssp-data sidecar-data)
+targets=(spark spark2 spark-shared ssp-data)
 if [ "$full" = "1" ]; then
     targets+=(ldk-server)
 fi
@@ -48,7 +48,7 @@ if [ "$assume_yes" != "1" ]; then
     fi
 fi
 
-services=(spark spark2 ssp swap-sidecar)
+services=(spark spark2 ssp)
 if [ "$full" = "1" ]; then
     services+=(ldk-server)
 fi
@@ -79,5 +79,5 @@ docker compose up -d --no-deps --force-recreate spark spark2
 echo "Spark operators are starting with new identities."
 echo "After both are healthy:"
 echo "  1. Run ./spark-operator-pubkeys.sh and update .env."
-echo "  2. Run docker compose up -d ldk-server ssp swap-sidecar."
-echo "  3. Run docker compose run --rm sidecar-fund."
+echo "  2. Run docker compose up -d ldk-server ssp."
+echo "  3. Run node --env-file=.env fund-ssp.mjs."

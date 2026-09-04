@@ -510,11 +510,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 18
-  #  Spark Service Provider. First boot generates the SSP signing key; publish
-  #  ssp_identity_pubkey from ssp:5000/health to wallet configs.
+  #  Spark Service Provider with an embedded Breez Spark liquidity wallet.
   ssp:
     container_name: "ssp"
-    image: ${SSP_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp:latest}
+    image: ghcr.io/benthecarman/mutinynet-ssp:master
+    pull_policy: always
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -530,19 +530,26 @@ services:
       - "127.0.0.1:5000:5000"  # proxied by nginx ssp.mutinynet.com
     volumes:
       - ~/volumes/ssp-data:/data
+      - ~/volumes/spark-shared:/spark-tls:ro
       - ~/volumes/ldk-server:/ldk-data:ro
     environment:
       SSP_LISTEN_ADDR: 0.0.0.0:5000
       SSP_CORS_ORIGINS: ${SSP_CORS_ORIGINS:-}
       SSP_NETWORK: SIGNET
       SSP_DATA_DIR: /data
+      SSP_PUBLIC_URL: http://ssp:5000
+      SPARK_MNEMONIC_FILE: /data/spark.mnemonic
+      SPARK_MNEMONIC_REQUIRED: 1
+      SSP_IDENTITY_PUBKEY: ${SSP_IDENTITY_PUBKEY:-}
+      SO_HOSTS: spark.minikube.local:10010,spark2.minikube.local:10011
+      SO_IDENTITY_PUBKEYS: ${SO_IDENTITY_PUBKEYS:?set SO_IDENTITY_PUBKEYS}
+      SO_CERT_FILES: /spark-tls/server_0.crt,/spark-tls/server_1.crt
+      SPARK_ADMIN_TOKEN: ${SPARK_ADMIN_TOKEN:?set SPARK_ADMIN_TOKEN}
       LDK_GRPC_ADDR: ldk-server:3536
       LDK_API_KEY_FILE: /ldk-data/signet/api_key
       LDK_TLS_CERT_FILE: /ldk-data/tls.crt
       SSP_LN_FEE_PPM: 0
       SSP_SWAP_FEE_SATS: 0
-      SIDECAR_URL: http://swap-sidecar:5001
-      SIDECAR_TOKEN: ${SIDECAR_TOKEN:?set SIDECAR_TOKEN}
       # Operator set the SSP encrypts preimage shares to (lightning receive).
       # Without it the SSP refuses to mint a claimable invoice and logs
       # "SSP_FROST_OPERATORS unset or invalid; cannot store shares".
@@ -553,96 +560,10 @@ services:
       SSP_FROST_THRESHOLD: 2
       RUST_LOG: ${SSP_RUST_LOG:-info}
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:5000/health | grep -q '\"ldk_mode\":\"live\"'"]
+      test: ["CMD", "mutinynet-ssp", "healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 18
-  #  Funded Spark wallet that completes SSP leaf swaps.
-  #  Fund once: docker compose run --rm sidecar-fund (needs BITCOIN_RPC_WALLET
-  #  with funds on bitcoind-services). Set SO_IDENTITY_PUBKEYS from
-  #  ./spark-operator-pubkeys.sh output after first SO boot.
-  swap-sidecar:
-    container_name: "swap-sidecar"
-    image: ${SIDECAR_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp-sidecar:latest}
-    user: "0:1000"
-    logging: *default-logging
-    restart: always
-    stop_grace_period: 1m
-    depends_on:
-      spark:
-        condition: service_healthy
-      spark2:
-        condition: service_healthy
-      ssp:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:5001:5001"
-    volumes:
-      - ~/volumes/sidecar-data:/app/data
-      - ~/volumes/spark:/tls/spark0:ro
-      - ~/volumes/spark2:/tls/spark1:ro
-    environment:
-      PORT: 5001
-      SPARK_LOCAL_INGRESS_HOST: sidecar
-      SPARK_NETWORK: SIGNET
-      SO_HOSTS: spark.minikube.local:10010,spark2.minikube.local:10011
-      SO_IDENTITY_PUBKEYS: ${SO_IDENTITY_PUBKEYS:-}
-      SSP_URL: http://ssp:5000
-      SIDECAR_MNEMONIC_FILE: /app/data/sidecar.mnemonic
-      SIDECAR_FILL_RECEIPTS_FILE: /app/data/swap-fills.json
-      SIDECAR_TOKEN: ${SIDECAR_TOKEN:?set SIDECAR_TOKEN}
-      ELECTRS_URL: ${ELECTRS_URL:-http://mempool_electrs:3003}
-      # The SDK only loads /tmp/minikube-ca.pem when network==LOCAL, so on
-      # SIGNET the operators' self-signed certs must be trusted via Node.
-      NODE_EXTRA_CA_CERTS: /tmp/minikube-ca.pem
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
-      interval: 15s
-      timeout: 10s
-      retries: 20
-  sidecar-fund:
-    container_name: "sidecar-fund"
-    image: ${SIDECAR_IMAGE:-ghcr.io/benthecarman/mutinynet-ssp-sidecar:latest}
-    user: "0:1000"
-    logging: *default-logging
-    profiles: ["tools"]
-    depends_on:
-      spark:
-        condition: service_healthy
-      spark2:
-        condition: service_healthy
-      ssp:
-        condition: service_healthy
-    restart: "no"
-    entrypoint: ["/entrypoint.sh", "node", "fund.mjs"]
-    volumes:
-      - ~/volumes/sidecar-data:/app/data
-      - ~/volumes/spark:/tls/spark0:ro
-      - ~/volumes/spark2:/tls/spark1:ro
-    environment:
-      SPARK_LOCAL_INGRESS_HOST: sidecar
-      SPARK_NETWORK: SIGNET
-      SO_HOSTS: spark.minikube.local:10010,spark2.minikube.local:10011
-      SO_IDENTITY_PUBKEYS: ${SO_IDENTITY_PUBKEYS:-}
-      SSP_URL: http://ssp:5000
-      SIDECAR_MNEMONIC_FILE: /app/data/sidecar.mnemonic
-      BITCOIN_RPC_URL: http://bitcoind-services:38332
-      BITCOIN_RPC_USER: bitcoin
-      BITCOIN_RPC_PASSWORD: $RPCPASSWORD
-      BITCOIN_RPC_WALLET: ${BITCOIN_RPC_WALLET:-default}
-      # Custom signet: the SDK's built-in electrs hosts don't cover it, and
-      # MINING must stay unset so faucet.mjs polls for confirmations rather
-      # than calling generatetoaddress (which cannot sign a block here).
-      ELECTRS_URL: ${ELECTRS_URL:-http://mempool_electrs:3003}
-      # Fills consume the SMALL denominations, so a full-ladder top-up spends
-      # most of its sats on large denoms that never deplete and still only buys
-      # a couple of fills. Skew top-ups to the small end with high multiplicity:
-      # 7 denoms x 20 = 140 sends for ~2.5M sats. Note each send needs its own
-      # confirmed UTXO in BITCOIN_RPC_WALLET or bitcoind hits the 25-descendant
-      # mempool chain limit -- keep at least FUND_MULTIPLICITY * denoms UTXOs.
-      FUND_LADDER: ${FUND_LADDER:-1000,2000,4000,8000,16000,32000,64000}
-      FUND_MULTIPLICITY: ${FUND_MULTIPLICITY:-20}
-      NODE_EXTRA_CA_CERTS: /tmp/minikube-ca.pem
   web:
     container_name: "mempool_frontend"
     environment:
