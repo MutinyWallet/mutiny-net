@@ -1,9 +1,10 @@
 # Self-contained Spark Operator image for MutinyNet.
 # Clones the pinned Spark fork and builds the SO and frost signer. The fork
-# exposes the authenticated counter-swap RPC required by a self-hosted SSP.
+# exposes the authenticated counter-swap RPC and dedicated SSP gRPC listener
+# required by a self-hosted SSP.
 # Override the source and pin with build arguments.
 ARG SPARK_REPO=https://github.com/benthecarman/spark
-ARG SPARK_REF=06614d2e3535385f15aef3749b2c8a780f679ebc
+ARG SPARK_REF=1adb6ddb981233173282b5fabeff3cdd2c6ab264
 # Build parallelism is capped: this host runs bitcoind alongside the build and
 # a full-width build OOMs it. Raise BUILD_JOBS on a machine with more headroom.
 ARG BUILD_JOBS=2
@@ -61,5 +62,7 @@ COPY --from=builder-rust /signer/target/release/spark-frost-signer /usr/local/bi
 # Migrations baked in (entrypoint applies them per operator DB).
 COPY --from=src /spark/spark/so/ent/migrate/migrations /opt/spark/migrations
 COPY --from=src /spark/spark/so/entephemeral/migrate/migrations /opt/spark/ephemeral_migrations
-EXPOSE 10009
+# Metadata only; Compose publishes the public listener on loopback and leaves
+# both possible SSP listener ports on the Docker network.
+EXPOSE 10010 10011 11010 11011
 ENTRYPOINT ["spark-operator"]

@@ -120,7 +120,21 @@ docker-compose up -d
 The `spark`, `spark2`, `ldk-server`, and `ssp` services run a 2-of-2 Spark
 operator set and the MutinyNet SSP. The SSP embeds its funded Breez Spark
 wallet, so there is no JavaScript sidecar. The operator and LDK images build
-from pinned commits. Compose pins the SSP image to a tested `sha-*` tag.
+from pinned commits. The SSP image is published separately; production
+deployments should replace its moving tag with a tested immutable `sha-*` tag.
+
+The operators also listen on `11010` and `11011` for the authenticated
+`SparkSspInternalService`. These ports are visible only on the Compose network:
+they have no host port mapping and are not routed by nginx. The SSP continues
+to use the public operator listeners for normal wallet operations and uses the
+dedicated listeners only for on-demand leaf splitting.
+
+On-demand splitting spans three repositories. Before deploying it, publish the
+Spark operator changes and the open-ssp changes, then update this repository's
+`spark/Dockerfile` `SPARK_REF` and `ssp` image to those immutable revisions.
+Local, uncommitted sibling-repository changes are not included in either Docker
+build. Do not enable the new listener against the currently pinned operator
+revision, because that binary does not recognize `--ssp-grpc-port`.
 
 Boot order:
 
@@ -166,6 +180,12 @@ Notes:
 * Fund the LDK on-chain wallet and open channels with `ldk-server-cli`.
   Receives need inbound capacity. Sends need outbound capacity.
 * Lightning receives use exact SSP wallet leaves. Keep common invoice amounts
-  in the funding ladder. Monitor `/health` values under `spark`.
+  in the funding ladder until on-demand splitting is deployed. Once enabled,
+  the SSP can repeatedly split an owned leaf to make the requested amount and
+  retain the remainder. `SSP_MIN_SPLIT_CHILD_SATS` controls the minimum value
+  of either child and defaults to the 330-sat P2TR relay-dust threshold.
+  Lower values deliberately create off-chain-only leaves that cannot be
+  independently relayed under default Bitcoin Core policy. Monitor `/health`
+  values under `spark`.
 * `reset-spark.sh` asks for confirmation and deletes all operator, SSP, and
   embedded-wallet state. `--full` also deletes LDK wallet and channel state.

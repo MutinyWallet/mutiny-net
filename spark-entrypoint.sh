@@ -11,6 +11,7 @@ case "$INDEX" in
 esac
 THRESHOLD=2
 PORT=$((10010 + INDEX))
+SSP_PORT=$((11010 + INDEX))
 SOCKET_PATH="/tmp/frost_${INDEX}.sock"
 HOME_DIR="/home/spark"
 SHARED_DIR="/home/spark-shared"
@@ -185,7 +186,7 @@ fi
 envsubst '${RPCPASSWORD}' < /config/so_config.yaml > "$HOME_DIR/so_config.yaml"
 start_frost_signer
 
-echo "Starting spark-operator on port $PORT..."
+echo "Starting spark-operator on public port $PORT and SSP-only port $SSP_PORT..."
 exec spark-operator \
     -config "$HOME_DIR/so_config.yaml" \
     -index "$INDEX" \
@@ -198,5 +199,6 @@ exec spark-operator \
     -ephemeral-database "${DB_BASE}/${EPHEMERAL_DB}?sslmode=disable" \
     -server-cert "$HOME_DIR/server.crt" \
     -server-key "$HOME_DIR/server.key" \
+    -ssp-grpc-port "$SSP_PORT" \
     -supported-networks signet \
     -local

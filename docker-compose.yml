@@ -416,6 +416,8 @@ services:
       - postgres
     ports:
       - "127.0.0.1:10010:10010"  # operator gRPC (proxied by nginx 0.spark.mutinynet.com)
+    expose:
+      - "11010"  # SSP-only gRPC; available to Compose services, never published on the host
     networks:
       default:
         aliases:
@@ -436,6 +438,7 @@ services:
         - CMD-SHELL
         - >-
           grpc_health_probe -addr=localhost:10010 -tls -tls-no-verify &&
+          grpc_health_probe -addr=localhost:11010 -tls -tls-no-verify &&
           PGPASSWORD="$$POSTGRES_PASSWORD" psql -h postgres
           -U lightning-rgs -d sparkoperator_0 -tAc
           "SELECT count(*) FROM signing_keyshares WHERE status = 'AVAILABLE';"
@@ -456,6 +459,8 @@ services:
       - postgres
     ports:
       - "127.0.0.1:10011:10011"  # operator gRPC (proxied by nginx 1.spark.mutinynet.com)
+    expose:
+      - "11011"  # SSP-only gRPC; available to Compose services, never published on the host
     networks:
       default:
         aliases:
@@ -476,6 +481,7 @@ services:
         - CMD-SHELL
         - >-
           grpc_health_probe -addr=localhost:10011 -tls -tls-no-verify &&
+          grpc_health_probe -addr=localhost:11011 -tls -tls-no-verify &&
           PGPASSWORD="$$POSTGRES_PASSWORD" psql -h postgres
           -U lightning-rgs -d sparkoperator_1 -tAc
           "SELECT count(*) FROM signing_keyshares WHERE status = 'AVAILABLE';"
@@ -544,6 +550,9 @@ services:
       SO_HOSTS: spark.minikube.local:10010,spark2.minikube.local:10011
       SO_IDENTITY_PUBKEYS: ${SO_IDENTITY_PUBKEYS:?set SO_IDENTITY_PUBKEYS}
       SO_CERT_FILES: /spark-tls/server_0.crt,/spark-tls/server_1.crt
+      SSP_OPERATOR_HOSTS: spark.minikube.local:11010,spark2.minikube.local:11011
+      SSP_OPERATOR_CERT_FILES: /spark-tls/server_0.crt,/spark-tls/server_1.crt
+      SSP_MIN_SPLIT_CHILD_SATS: ${SSP_MIN_SPLIT_CHILD_SATS:-330}
       SPARK_ADMIN_TOKEN: ${SPARK_ADMIN_TOKEN:?set SPARK_ADMIN_TOKEN}
       LDK_GRPC_ADDR: ldk-server:3536
       LDK_API_KEY_FILE: /ldk-data/signet/api_key
