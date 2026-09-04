@@ -3,12 +3,12 @@
 ## Supported versions
 
 Mutinynet is continuously deployed and does not maintain security fixes for
-older releases or commits. Only the latest version of the `main` branch is
+older releases or commits. Only the latest version of the `master` branch is
 supported.
 
 | Version | Supported |
 | --- | --- |
-| Latest `main` | Yes |
+| Latest `master` | Yes |
 | Tagged releases and older commits | No |
 
 ## Reporting a vulnerability
