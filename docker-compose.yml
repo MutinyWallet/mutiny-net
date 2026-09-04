@@ -439,6 +439,11 @@ services:
   #  Spark operators (2-of-2, current upstream SO; see spark/ + spark-config.yaml)
   spark:
     container_name: "spark"
+    # Prebuilt by .github/workflows/spark-operator.yml so `docker compose pull`
+    # picks up a SPARK_REF bump. `build` stays as a local escape hatch: run
+    # `docker compose build spark` to compile the pinned ref on this host.
+    image: ghcr.io/mutinywallet/mutinynet-spark-operator:${SPARK_OPERATOR_TAG:-master}
+    pull_policy: always
     build:
       context: ./spark
     user: "0:1000"
@@ -482,6 +487,9 @@ services:
       retries: 3
   spark2:
     container_name: "spark2"
+    # Same image as spark; the operator index comes from SPARK_INDEX below.
+    image: ghcr.io/mutinywallet/mutinynet-spark-operator:${SPARK_OPERATOR_TAG:-master}
+    pull_policy: always
     build:
       context: ./spark
     user: "0:1000"

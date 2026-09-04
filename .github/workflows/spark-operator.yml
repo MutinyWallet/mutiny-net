@@ -1,0 +1,60 @@
+# Builds the Spark operator image so deploys can `docker compose pull` it
+# instead of compiling on the host. The host build is capped at BUILD_JOBS=2
+# (it OOMs alongside bitcoind) and takes minutes; worse, `docker compose up -d`
+# never rebuilds, so bumping SPARK_REF without an explicit `build` silently
+# leaves the old binary running.
+name: Build Spark operator image
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "spark/**"
+      - ".github/workflows/spark-operator.yml"
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/mutinywallet/mutinynet-spark-operator
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # spark/Dockerfile is the source of truth for the pinned fork revision.
+      # Publishing it as a tag keeps the running image traceable to a commit
+      # and gives us a specific tag to roll back to.
+      - name: Read pinned SPARK_REF
+        id: pin
+        run: |
+          ref=$(grep -m1 '^ARG SPARK_REF=' spark/Dockerfile | cut -d= -f2)
+          case "$ref" in
+            [0-9a-f]*) ;;
+            *) echo "no SPARK_REF pin found in spark/Dockerfile" >&2; exit 1 ;;
+          esac
+          echo "short=${ref:0:12}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./spark
+          push: true
+          # Runners have more headroom than the deploy host, which pins
+          # BUILD_JOBS at 2 to survive building next to bitcoind.
+          build-args: BUILD_JOBS=4
+          tags: |
+            ${{ env.IMAGE }}:master
+            ${{ env.IMAGE }}:${{ steps.pin.outputs.short }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
