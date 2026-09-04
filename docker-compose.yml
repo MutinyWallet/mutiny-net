@@ -68,7 +68,7 @@ services:
       - "127.0.0.1:38337:38334"
   lnd:
     container_name: "lnd"
-    image: lightninglabs/lnd:v0.21.1-beta
+    image: lightninglabs/lnd:v0.21.3-beta
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -221,7 +221,7 @@ services:
   # Need a separate lnd instance for Cashu so the faucet can pay it/out
   cashu-lnd:
     container_name: "cashu-lnd"
-    image: lightninglabs/lnd:v0.21.1-beta
+    image: lightninglabs/lnd:v0.21.3-beta
     user: "0:1000"
     logging: *default-logging
     restart: always
