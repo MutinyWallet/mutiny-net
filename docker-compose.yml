@@ -66,6 +66,12 @@ services:
       - "127.0.0.1:38335:38332"  # RPC on alternate port
       - "38336:38333"  # P2P on alternate port, must stay public
       - "127.0.0.1:38337:38334"
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-signet", "-datadir=/root/.bitcoin", "getblockchaininfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15m
   lnd:
     container_name: "lnd"
     image: lightninglabs/lnd:v0.21.3-beta
@@ -73,6 +79,14 @@ services:
     logging: *default-logging
     restart: always
     stop_grace_period: 10m
+    depends_on:
+      bitcoind-services:
+        # lnd subscribes to bitcoind's ZMQ sockets once, at startup. If
+        # bitcoind-services is recreated underneath it, the rawtx socket dies and
+        # btcwallet's reconnect path spins instead of re-dialing, burning a core.
+        # restart: true makes Compose bounce lnd along with its backend.
+        condition: service_healthy
+        restart: true
     environment:
       RPCPASSWORD: $RPCPASSWORD
     command: [
@@ -116,6 +130,14 @@ services:
       - "9735:9735"
       - "127.0.0.1:10009:10009"
       - "127.0.0.1:8081:8081"  # proxied by nginx rpc.mutinynet.com
+    healthcheck:
+      # Both bitcoind ZMQ subscriptions must be live. A missing rawtx connection
+      # (28333 = 0x6EAD) is the hot-loop state; rawblock is 28332 = 0x6EAC.
+      test: ["CMD-SHELL", "grep -qE '^ *[0-9]+: [0-9A-F]{8}:[0-9A-F]{4} [0-9A-F]{8}:6EAC 01' /proc/net/tcp && grep -qE '^ *[0-9]+: [0-9A-F]{8}:[0-9A-F]{4} [0-9A-F]{8}:6EAD 01' /proc/net/tcp"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 5m
   lndk:
     container_name: "lndk"
     build: ./lndk
@@ -226,6 +248,10 @@ services:
     logging: *default-logging
     restart: always
     stop_grace_period: 10m
+    depends_on:
+      bitcoind-services:
+        condition: service_healthy
+        restart: true
     environment:
       RPCPASSWORD: $RPCPASSWORD
     command: [
@@ -261,6 +287,14 @@ services:
       - "127.0.0.1:8082:8082"
     volumes:
       - ~/volumes/.cashu-lnd:/root/.lnd
+    healthcheck:
+      # Both bitcoind ZMQ subscriptions must be live. A missing rawtx connection
+      # (28333 = 0x6EAD) is the hot-loop state; rawblock is 28332 = 0x6EAC.
+      test: ["CMD-SHELL", "grep -qE '^ *[0-9]+: [0-9A-F]{8}:[0-9A-F]{4} [0-9A-F]{8}:6EAC 01' /proc/net/tcp && grep -qE '^ *[0-9]+: [0-9A-F]{8}:[0-9A-F]{4} [0-9A-F]{8}:6EAD 01' /proc/net/tcp"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 5m
   nutshell:
     container_name: "nutshell"
     image: 'cashubtc/nutshell:0.20.3'
