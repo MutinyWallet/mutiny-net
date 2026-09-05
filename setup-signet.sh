@@ -47,3 +47,14 @@ if [[ -f "${BITCOIN_DIR}/uses_modern_wallet" && "$MINERENABLED" == "1" ]]; then
 
     
 fi
+
+# The normal runtime starts and supervises bitcoind in the foreground.
+bitcoin-cli -datadir="$BITCOIN_DIR" stop
+for _ in $(seq 1 60); do
+    [ ! -f "$BITCOIN_DIR/signet/bitcoind.pid" ] && break
+    sleep 1
+done
+[ ! -f "$BITCOIN_DIR/signet/bitcoind.pid" ] || {
+    echo "bitcoind did not stop after initial signet setup" >&2
+    exit 1
+}
