@@ -41,12 +41,9 @@ xff_client_ip_position: 0
 
 rate_limiter:
   enabled: true
-  window: 60s
-  max_requests: 1000
-  methods: []
 
-return_detailed_errors: true
-return_detailed_panic_errors: true
+return_detailed_errors: false
+return_detailed_panic_errors: false
 
 tracing:
   enabled: false
@@ -61,6 +58,15 @@ tracing:
 knobs:
   static_values:
     spark.database.pool.min_conns: 4
+    # The operator reads rate and concurrency limits from knobs, not from
+    # fields under rate_limiter. Base global limits apply to both IP and
+    # authenticated-pubkey dimensions when each identity is available.
+    "spark.so.ratelimit.limit@global#1s": 100
+    "spark.so.ratelimit.limit@global#1m": 1000
+    "spark.so.ratelimit.limit@/spark_authn.SparkAuthnService/:ip#1s": 10
+    "spark.so.ratelimit.limit@/spark_authn.SparkAuthnService/:ip#1m": 120
+    "spark.so.grpc.server.concurrency_limit.limit@global": 128
+    "spark.so.grpc.server.concurrency_limit.limit@global_stream": 128
     spark.so.max_unused_deposit_addresses: 512
     spark.so.enable_instant_static_deposit@REGTEST: 100
     spark.so.max_pending_instant_static_deposit_amount: 1000000
