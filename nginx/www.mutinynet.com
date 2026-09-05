@@ -35,7 +35,18 @@ server {
 	location /api/v1 {
 		rewrite ^/api/v1(.*)$ /api$1 last;
 	}
+	# Electrs bulk lookup helpers are for trusted backend consumers only.
+	location ^~ /api/internal/ {
+		return 404;
+	}
+
 	location /api/ {
+		# Electrs v3.3.0 does not consistently cap this caller-controlled
+		# history size. Keep public requests within three digits.
+		if ($arg_max_txs ~ "^[+]?[0-9]{4,}$") {
+			return 400;
+		}
+
 		if ($request_method = 'OPTIONS') {
             add_header 'Access-Control-Allow-Origin' '*';
             add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
