@@ -1,8 +1,16 @@
+limit_conn_zone $binary_remote_addr zone=ssp_clients:10m;
+limit_req_zone $binary_remote_addr zone=ssp_requests:10m rate=20r/s;
+
 server {
     server_name ssp.mutinynet.com;
+    limit_conn_status 429;
+    limit_req_status 429;
 
     # Self-hosted Spark Service Provider (GraphQL over HTTPS)
     location / {
+        limit_conn ssp_clients 20;
+        limit_req zone=ssp_requests burst=40 nodelay;
+
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -11,7 +19,7 @@ server {
 
         proxy_read_timeout 300;
         proxy_send_timeout 300;
-        client_body_timeout 300;
+        client_body_timeout 30s;
         client_max_body_size 10M;
     }
 

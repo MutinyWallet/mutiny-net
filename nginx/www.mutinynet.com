@@ -1,6 +1,15 @@
+limit_conn_zone $binary_remote_addr zone=www_clients:10m;
+limit_req_zone $binary_remote_addr zone=www_api:10m rate=30r/s;
+
 server {
 	server_name www.mutinynet.com;
+	limit_conn www_clients 50;
+	limit_conn_status 429;
+	limit_req_status 429;
+
 	location /api/v1/ws {
+		limit_req zone=www_api burst=20 nodelay;
+
 		proxy_pass http://127.0.0.1:8999/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
@@ -36,6 +45,8 @@ server {
 		rewrite ^/api/v1(.*)$ /api$1 last;
 	}
 	location /api/ {
+		limit_req zone=www_api burst=60 nodelay;
+
 		if ($request_method = 'OPTIONS') {
             add_header 'Access-Control-Allow-Origin' '*';
             add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
@@ -63,6 +74,8 @@ server {
 
 	# mainnet API
 	location /ws {
+		limit_req zone=www_api burst=20 nodelay;
+
 		proxy_pass http://127.0.0.1:8999/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;

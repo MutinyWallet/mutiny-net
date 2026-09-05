@@ -1,8 +1,16 @@
+limit_conn_zone $binary_remote_addr zone=spark1_clients:10m;
+limit_req_zone $binary_remote_addr zone=spark1_requests:10m rate=100r/s;
+
 server {
     server_name 1.spark.mutinynet.com;
+    limit_conn_status 429;
+    limit_req_status 429;
 
     # gRPC endpoint (main Spark operator API)
     location / {
+        limit_conn spark1_clients 50;
+        limit_req zone=spark1_requests burst=100 nodelay;
+
         grpc_pass grpcs://127.0.0.1:10011;
         grpc_set_header Host $host;
         grpc_set_header X-Real-IP $remote_addr;
@@ -12,7 +20,7 @@ server {
         # gRPC specific settings
         grpc_read_timeout 300;
         grpc_send_timeout 300;
-        client_body_timeout 300;
+        client_body_timeout 30s;
         client_max_body_size 10M;
 
         # Enable gRPC error details
