@@ -146,7 +146,7 @@ services:
     logging: *default-logging
     depends_on:
       - lnd
-    command: --address=https://lnd:10009 --cert-path=/root/.lnd/tls.cert --macaroon-path=/root/.lnd/data/chain/bitcoin/signet/admin.macaroon --log-level=trace --grpc-host=0.0.0.0
+    command: --address=https://lnd:10009 --cert-path=/root/.lnd/tls.cert --macaroon-path=/root/.lnd/data/chain/bitcoin/signet/admin.macaroon --log-level=${LNDK_LOG_LEVEL:-info} --grpc-host=0.0.0.0
     environment:
       - RUST_BACKTRACE=1
     volumes:
