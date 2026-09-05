@@ -1,5 +1,11 @@
+limit_conn_zone $binary_remote_addr zone=rgs_clients:10m;
+limit_req_zone $binary_remote_addr zone=rgs_snapshots:10m rate=5r/s;
+
 server {
 	server_name rgs.mutinynet.com;
+	limit_conn rgs_clients 20;
+	limit_conn_status 429;
+	limit_req_status 429;
     root /var/www/rgs;
 
 	location / {
@@ -30,6 +36,9 @@ server {
 	}
 
     location /snapshot {
+        limit_req zone=rgs_snapshots burst=10 nodelay;
+        limit_rate 5m;
+
         try_files $uri $uri/ /res/symlinks/$1.bin;
         autoindex on;
         rewrite ^/snapshot/(\d+)$ /snapshot/$1.bin break;

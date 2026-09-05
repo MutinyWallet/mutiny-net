@@ -3,10 +3,18 @@ map $http_upgrade $connection_upgrade {
     '' close;
 }
 
+limit_conn_zone $binary_remote_addr zone=mutinynet_clients:10m;
+limit_req_zone $binary_remote_addr zone=mutinynet_api:10m rate=30r/s;
+
 server {
 	server_name mutinynet.com;
+	limit_conn mutinynet_clients 50;
+	limit_conn_status 429;
+	limit_req_status 429;
 
     location /electrum-websocket {
+        limit_req zone=mutinynet_api burst=20 nodelay;
+
         proxy_pass http://127.0.0.1:50050; # Point to the websocat bridge
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -19,6 +27,8 @@ server {
     }
 
 	location /api/v1/ws {
+		limit_req zone=mutinynet_api burst=20 nodelay;
+
 		proxy_pass http://127.0.0.1:8999/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
@@ -55,6 +65,8 @@ server {
     }
 
     location /api/v1/ {
+		limit_req zone=mutinynet_api burst=60 nodelay;
+
         if ($request_method = 'OPTIONS') {
             add_header 'Access-Control-Allow-Origin' '*' always;
             add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
@@ -75,6 +87,8 @@ server {
 
 
     location /api/ {
+		limit_req zone=mutinynet_api burst=60 nodelay;
+
         if ($request_method = 'OPTIONS') {
             add_header 'Access-Control-Allow-Origin' '*' always;
             add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
@@ -105,6 +119,8 @@ server {
 
 	# mainnet API
 	location /ws {
+		limit_req zone=mutinynet_api burst=20 nodelay;
+
 		proxy_pass http://127.0.0.1:8999/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
