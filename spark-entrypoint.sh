@@ -200,5 +200,4 @@ exec spark-operator \
     -server-cert "$HOME_DIR/server.crt" \
     -server-key "$HOME_DIR/server.key" \
     -ssp-grpc-port "$SSP_PORT" \
-    -supported-networks signet \
-    -local
+    -supported-networks signet
