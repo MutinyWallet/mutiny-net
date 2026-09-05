@@ -49,10 +49,13 @@ zmqpubrawtx=$ZMQPUBRAWTX
 zmqpubhashblock=$ZMQPUBHASHBLOCK
 rpcbind=$RPCBIND
 rpcallowip=$RPCALLOWIP
-whitelist=$WHITELIST
 fallbackfee=0.0002
 minrelaytxfee=0.00000100
 datacarriersize=100000"
+
+if [[ -n "$WHITELIST" ]]; then
+    echo "whitelist=$WHITELIST"
+fi
 
 if [[ "$CONNECTNODE" != "" ]]; then
     echo $CONNECTNODE | tr ',' '\n' | while read node; do
