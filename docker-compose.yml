@@ -5,9 +5,28 @@ x-logging:
     max-size: "50m"
     max-file: "3"
 
+x-standard-resources: &standard-resources
+  cpus: 2.0
+  mem_limit: 2g
+  pids_limit: 256
+  ulimits:
+    nofile:
+      soft: 4096
+      hard: 8192
+
+x-heavy-resources: &heavy-resources
+  cpus: 4.0
+  mem_limit: 4g
+  pids_limit: 512
+  ulimits:
+    nofile:
+      soft: 8192
+      hard: 16384
+
 services:
   # Mining-only bitcoind instance
   bitcoind-miner:
+    <<: *heavy-resources
     container_name: "bitcoind-miner"
     build: .
     user: "0:1000"
@@ -40,6 +59,7 @@ services:
 
   # Services-only bitcoind instance (no mining)
   bitcoind-services:
+    <<: *heavy-resources
     container_name: "bitcoind-services"
     build: .
     user: "0:1000"
@@ -73,6 +93,7 @@ services:
       retries: 5
       start_period: 15m
   lnd:
+    <<: *heavy-resources
     container_name: "lnd"
     image: lightninglabs/lnd:v0.21.3-beta
     user: "0:1000"
@@ -139,6 +160,7 @@ services:
       retries: 3
       start_period: 5m
   lndk:
+    <<: *standard-resources
     container_name: "lndk"
     build: ./lndk
     restart: unless-stopped
@@ -153,6 +175,7 @@ services:
       - ~/volumes/lndk:/root/.lndk
       - ~/volumes/.lnd:/root/.lnd:ro
   rgs_server:
+    <<: *standard-resources
     container_name: "rgs-server"
     logging: *default-logging
     restart: always
@@ -180,6 +203,7 @@ services:
     entrypoint: [ "rapid-gossip-sync-server" ]
 
   postgres:
+    <<: *heavy-resources
     container_name: "postgres"
     image: 'postgres:17-alpine'
     logging: *default-logging
@@ -211,6 +235,7 @@ services:
   #      - "0.0.0.0:50001:50001"
 
   mempool_electrs:
+    <<: *heavy-resources
     container_name: "mempool_electrs"
     image: mempool/electrs:v3.3.0
     user: "0:1000"
@@ -242,6 +267,7 @@ services:
 
   # Need a separate lnd instance for Cashu so the faucet can pay it/out
   cashu-lnd:
+    <<: *heavy-resources
     container_name: "cashu-lnd"
     image: lightninglabs/lnd:v0.21.3-beta
     user: "0:1000"
@@ -296,6 +322,7 @@ services:
       retries: 3
       start_period: 5m
   nutshell:
+    <<: *standard-resources
     container_name: "nutshell"
     image: 'cashubtc/nutshell:0.20.3'
     logging: *default-logging
@@ -321,6 +348,7 @@ services:
       - ~/volumes/.cashu-lnd:/root/.lnd:ro
       - ~/volumes/nutshell:/root/.cashu
   faucet:
+    <<: *standard-resources
     container_name: "faucet"
     image: ghcr.io/mutinywallet/mutinynet-faucet:master
     user: "0:1000"
@@ -332,6 +360,7 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
   faucet_backend:
+    <<: *standard-resources
     container_name: "faucet_backend"
     image: ghcr.io/mutinywallet/mutinynet-faucet-rs:master
     extra_hosts:
@@ -377,6 +406,7 @@ services:
     ports:
       - "127.0.0.1:3001:3001"
   arkade-daemon:
+    <<: *standard-resources
     container_name: "arkade-daemon"
     image: ghcr.io/kukks/arkade-faucet-daemon:latest
     user: "0:1000"
@@ -398,6 +428,7 @@ services:
     volumes:
       - ~/volumes/arkade-daemon:/data
   fortune_402:
+    <<: *standard-resources
     container_name: "fortune_402"
     image: ghcr.io/benthecarman/fortune-402:master
     environment:
@@ -415,6 +446,7 @@ services:
     ports:
       - "127.0.0.1:3402:3402"
   lnurl_server:
+    <<: *standard-resources
     container_name: "lnurl_server"
     image: ghcr.io/benthecarman/lnurl-server:master
     environment:
@@ -438,6 +470,7 @@ services:
       - "127.0.0.1:3002:3002"
   #  Spark operators (2-of-2, current upstream SO; see spark/ + spark-config.yaml)
   spark:
+    <<: *heavy-resources
     container_name: "spark"
     build:
       context: ./spark
@@ -481,6 +514,7 @@ services:
       timeout: 10s
       retries: 3
   spark2:
+    <<: *heavy-resources
     container_name: "spark2"
     build:
       context: ./spark
@@ -525,6 +559,7 @@ services:
       retries: 3
   #  Lightning backend for the SSP (bitcoind backend, custom signet).
   ldk-server:
+    <<: *heavy-resources
     container_name: "ldk-server"
     build:
       context: ./ldk-server
@@ -552,6 +587,7 @@ services:
       retries: 18
   #  Spark Service Provider with an embedded Breez Spark liquidity wallet.
   ssp:
+    <<: *heavy-resources
     container_name: "ssp"
     image: ghcr.io/benthecarman/mutinynet-ssp:master
     pull_policy: always
@@ -608,6 +644,7 @@ services:
       timeout: 5s
       retries: 18
   web:
+    <<: *standard-resources
     container_name: "mempool_frontend"
     environment:
       MAINNET_ENABLED: "false"
@@ -625,6 +662,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
   api:
+    <<: *heavy-resources
     container_name: "mempool_backend"
     environment:
       MEMPOOL_NETWORK: "signet"
@@ -665,6 +703,7 @@ services:
       - ~/volumes/mempool:/backend/cache
       - ~/volumes/.lnd:/root/.lnd:ro
   db:
+    <<: *heavy-resources
     container_name: "mempool_db"
     environment:
       MYSQL_DATABASE: "mempool"
@@ -691,6 +730,7 @@ services:
     volumes:
       - ~/volumes/mysql/data:/var/lib/mysql
   analytics:
+    <<: *standard-resources
     container_name: "analytics"
     image: ghcr.io/benthecarman/cf-mutinynet-traffic:latest
     user: "0:1000"
