@@ -262,15 +262,11 @@ use".
   Both have health checks.
 * bitcoind whitelists only the Compose subnet. Public peers get default
   treatment.
-* The Spark operator image is the exception: it is pulled from GHCR on the
-  `master` tag so a `SPARK_REF` bump ships with `docker compose pull`. After
-  pushing a bump, wait for the "Build Spark operator image" workflow, then pull
-  and restart both operators. Set `SPARK_OPERATOR_TAG` to a pinned-ref tag to
-  freeze it.
-* Images that used moving tags are pinned by digest. Update a pin with
-  `docker buildx imagetools inspect <image>:<tag> --format '{{.Manifest.Digest}}'`
-  in a reviewed commit. The private analytics image needs
-  `gh api /users/benthecarman/packages/container/cf-mutinynet-traffic/versions`.
+* Our own images use moving tags on purpose so `docker compose pull` picks up
+  a new build without a commit here. The operator image is built by the
+  "Build Spark operator image" workflow from `SPARK_REF`; after pushing a
+  bump, wait for it, then pull and restart both operators. Set
+  `SPARK_OPERATOR_TAG` to a pinned-ref tag to freeze it.
 * LNDK logs at `info` and sends its file log to `/dev/null`. Docker rotates
   stdout.
 

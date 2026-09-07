@@ -367,7 +367,7 @@ services:
     container_name: "faucet"
     mem_limit: 512m
     pids_limit: 256
-    image: ghcr.io/mutinywallet/mutinynet-faucet:master@sha256:941b96afacc03f7a600897e37c75892cc10d43ac6a2caed5d22bb18caac4dd1b
+    image: ghcr.io/mutinywallet/mutinynet-faucet:master
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -380,7 +380,7 @@ services:
     container_name: "faucet_backend"
     mem_limit: 1g
     pids_limit: 256
-    image: ghcr.io/mutinywallet/mutinynet-faucet-rs:master@sha256:37a934e5ebeb07f9a0694872aadd36ab35d7c23f152e4f0cd3e3ca6371645557
+    image: ghcr.io/mutinywallet/mutinynet-faucet-rs:master
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -427,7 +427,7 @@ services:
     container_name: "arkade-daemon"
     mem_limit: 512m
     pids_limit: 256
-    image: ghcr.io/kukks/arkade-faucet-daemon:latest@sha256:8a84c49a517f683ebc27b5a91fcfd10c6b382218a9557b0bb2231de1143ea6b5
+    image: ghcr.io/kukks/arkade-faucet-daemon:latest
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -450,7 +450,7 @@ services:
     container_name: "fortune_402"
     mem_limit: 256m
     pids_limit: 128
-    image: ghcr.io/benthecarman/fortune-402:master@sha256:613ca1305a9e0ee740dbd0cafd82769598c0a546f20262a55fbbfbbd10ebfdc7
+    image: ghcr.io/benthecarman/fortune-402:master
     environment:
       LND_ADDRESS: "https://lnd:10009"
       LND_CERT_PATH: "/root/.lnd/tls.cert"
@@ -469,7 +469,7 @@ services:
     container_name: "lnurl_server"
     mem_limit: 512m
     pids_limit: 256
-    image: ghcr.io/benthecarman/lnurl-server:master@sha256:9e68ad680cf838c425239be7c82dc713e035a55a423b3e6e04a7bd936b177d00
+    image: ghcr.io/benthecarman/lnurl-server:master
     environment:
       RUST_LOG: "info"
       LNURL_DATA_DIR: "/root/.lnurl"
@@ -627,8 +627,8 @@ services:
     networks:
       default:
         ipv4_address: 10.213.87.210
-    # Pinned by digest. Update the pin in a reviewed commit.
-    image: ghcr.io/benthecarman/mutinynet-ssp:master@sha256:a1c97453cfab1c7e20ae7f9fa35c273b0737072ecfbec68684a6417cab3ed580
+    image: ghcr.io/benthecarman/mutinynet-ssp:master
+    pull_policy: always
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -774,7 +774,7 @@ services:
     container_name: "analytics"
     mem_limit: 512m
     pids_limit: 256
-    image: ghcr.io/benthecarman/cf-mutinynet-traffic:latest@sha256:472ba699b14276a74a531fcd2f590db5ca663595f223005970ce974832a6264f
+    image: ghcr.io/benthecarman/cf-mutinynet-traffic:latest
     user: "0:1000"
     restart: always
     logging: *default-logging
