@@ -189,3 +189,70 @@ Notes:
   values under `spark`.
 * `reset-spark.sh` asks for confirmation and deletes all operator, SSP, and
   embedded-wallet state. `--full` also deletes LDK wallet and channel state.
+
+## Hardening
+
+These controls protect the public services. Deploy them in this order.
+
+### nginx
+
+* Vhosts define their own `limit_req_zone` and `limit_conn_zone` entries and
+  include `spark-grpc-proxy.conf` and `electrs-cors.conf` from
+  `/root/mutiny-net/nginx/`. Copy the vhosts as before and reload.
+* The Electrum port moves behind an nginx `stream` block. Add this line to
+  `nginx.conf` at the top level, outside `http {}`:
+
+  ```
+  include /root/mutiny-net/nginx/electrum-stream.conf;
+  ```
+
+  This needs the stream module (`nginx-full` on Debian, or load
+  `ngx_stream_module.so`). The compose file binds electrs to
+  `127.0.0.1:50003`, and nginx listens on `50001`. Reload nginx after
+  `docker compose up -d mempool_electrs`, because both cannot own port 50001.
+  The websocat bridge on the host keeps connecting to `127.0.0.1:50001`;
+  loopback is exempt from the per-IP cap.
+* Both operator vhosts return 404 for the SO-to-SO and mock services. Requests
+  to the challenge RPCs get a tighter per-IP limit than the rest.
+
+### Spark authorization
+
+`spark-config.yaml` sets `service_authz.mode: 3` (enforce). The operator then
+accepts internal methods only from peers whose source address starts with
+`10.`, so the compose file pins the default network to `10.213.87.0/24` and
+gives the operators and the SSP fixed addresses. Changing the network subnet
+recreates every container:
+
+```bash
+docker compose down            # bitcoind index reload takes minutes afterwards
+docker compose up -d --build
+```
+
+If SO-to-SO calls fail after the change, set `mode: 2` (warn) to log instead of
+deny, and check the operator logs for `authz`.
+
+Rate limits and concurrency caps live under `knobs.static_values` in
+`spark-config.yaml`. The `rate_limiter` block only switches the limiter on.
+
+### Containers
+
+* Every service has `pids_limit`, and most have `mem_limit`. The values are a
+  first cut. Watch `docker stats` and raise a limit before it causes restarts.
+  Bitcoin and the databases have reservations only.
+* Both bitcoind containers run bitcoind as PID 1 and restart when it exits.
+  Both have health checks.
+* bitcoind whitelists only the Compose subnet. Public peers get default
+  treatment.
+* Images that used moving tags are pinned by digest. Update a pin with
+  `docker buildx imagetools inspect <image>:<tag> --format '{{.Manifest.Digest}}'`
+  in a reviewed commit. The private analytics image needs
+  `gh api /users/benthecarman/packages/container/cf-mutinynet-traffic/versions`.
+* LNDK logs at `info` and sends its file log to `/dev/null`. Docker rotates
+  stdout.
+
+### Audit
+
+`./audit-spark.sh [days]` searches the nginx access logs and operator logs for
+calls to the services that were reachable before this hardening, and runs
+sanity queries against both operator databases. A clean access log for the
+whole exposure window is the strongest evidence that nothing happened.
