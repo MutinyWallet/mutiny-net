@@ -165,10 +165,10 @@ services:
     logging: *default-logging
     depends_on:
       - lnd
-    # Peers drive log volume through custom messages. Keep info level, and send
-    # the file log to /dev/null because LNDK never rotates it; stdout is
-    # rotated by Docker.
-    command: --address=https://lnd:10009 --cert-path=/root/.lnd/tls.cert --macaroon-path=/root/.lnd/data/chain/bitcoin/signet/admin.macaroon --log-level=info --log-file=/dev/null --grpc-host=0.0.0.0
+    # Peers drive log volume through custom messages, so log at info. The file
+    # log under ~/volumes/lndk never rotates; the deployed image predates the
+    # --log-file option, so trim that file by hand if it grows.
+    command: --address=https://lnd:10009 --cert-path=/root/.lnd/tls.cert --macaroon-path=/root/.lnd/data/chain/bitcoin/signet/admin.macaroon --log-level=info --grpc-host=0.0.0.0
     environment:
       - RUST_BACKTRACE=1
     volumes:
