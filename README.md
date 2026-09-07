@@ -196,17 +196,17 @@ These controls protect the public services. Deploy them in this order.
 
 ### nginx
 
+* `nginx/nginx.conf` and every vhost in `nginx/` are the live config:
+  `nginx/deploy.sh` links them into `/etc/nginx`, runs `nginx -t`, and
+  reloads. Run `nginx/deploy.sh --check` to see drift between the host and
+  the repo without changing anything. After the first run, a `git pull`
+  changes the files nginx reads, and the next `deploy.sh` (or any reload)
+  applies them.
 * Vhosts define their own `limit_req_zone` and `limit_conn_zone` entries and
   include `spark-grpc-proxy.conf` and `electrs-cors.conf` from
-  `/root/mutiny-net/nginx/`. Copy the vhosts as before and reload.
-* The Electrum port moves behind nginx's existing `stream {}` block. Add this
-  line inside that block in `nginx.conf`:
-
-  ```
-  include /root/mutiny-net/nginx/electrum-stream.conf;
-  ```
-
-  The compose file binds electrs to `127.0.0.1:50003`, and nginx listens on
+  `/root/mutiny-net/nginx/`.
+* The Electrum port sits behind the `stream {}` block in `nginx/nginx.conf`,
+  which includes `electrum-stream.conf`. The compose file binds electrs to `127.0.0.1:50003`, and nginx listens on
   `50001`. Reload nginx after `docker compose up -d mempool_electrs`, because
   both cannot own port 50001. Clients use `electrum.mutinynet.com:50001`,
   which must stay a DNS-only record; Cloudflare-proxied names cannot carry
@@ -234,8 +234,27 @@ deny, and check the operator logs for `authz`.
 Rate limits and concurrency caps live under `knobs.static_values` in
 `spark-config.yaml`. The `rate_limiter` block only switches the limiter on.
 
+The operators and the SSP have fixed addresses above `.128`, and the network's
+`ip_range` keeps dynamic allocation below it. Docker does not reserve a
+service's fixed address from other services, so without the range a container
+that starts first can take it and the operator fails with "Address already in
+use".
+
 ### Containers
 
+* `docker compose up -d` recreates only services whose own config changed,
+  plus everything when something shared changes: the network, the logging
+  driver, or a `depends_on` chain. Run `docker compose up -d --dry-run` first
+  and read which containers it would recreate. Both bitcoind nodes should
+  appear only when you mean it; each restart costs a block index reload.
+* Container logs go to the host journal (`journalctl CONTAINER_NAME=spark -f`
+  or `docker logs`). They survive container recreation. Retention is bounded
+  by `host/journald-mutinynet.conf`, installed to
+  `/etc/systemd/journald.conf.d/`. Switching the driver recreates every
+  container, so do it in a planned window.
+* The miner's health check fails when the chain tip is older than ten
+  minutes, so a stalled miner shows as unhealthy. The services node only
+  checks RPC.
 * Every service has `pids_limit`, and most have `mem_limit`. The values are a
   first cut. Watch `docker stats` and raise a limit before it causes restarts.
   Bitcoin and the databases have reservations only.
