@@ -1,6 +1,14 @@
 server {
     server_name 1.spark.mutinynet.com;
 
+    # Deny the SO-to-SO and test-only services. The pinned operator registers
+    # them on the public listener behind an IP allowlist that this deployment
+    # disables (service_authz.mode: 1). The operators peer over the Compose
+    # network, so this never blocks legitimate traffic.
+    location ~ ^/(mock\.MockService|spark_internal\.SparkInternalService|spark_token\.SparkTokenInternalService|dkg\.DKGService|gossip\.GossipService)/ {
+        return 404;
+    }
+
     # gRPC endpoint (main Spark operator API)
     location / {
         grpc_pass grpcs://127.0.0.1:10011;
