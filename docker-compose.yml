@@ -461,6 +461,7 @@ services:
       default:
         aliases:
           - spark.minikube.local
+        ipv4_address: 10.213.87.10
     environment:
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
       - RPCPASSWORD=$RPCPASSWORD
@@ -507,6 +508,7 @@ services:
       default:
         aliases:
           - spark2.minikube.local
+        ipv4_address: 10.213.87.11
     environment:
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
       - RPCPASSWORD=$RPCPASSWORD
@@ -561,6 +563,9 @@ services:
   #  Spark Service Provider with an embedded Breez Spark liquidity wallet.
   ssp:
     container_name: "ssp"
+    networks:
+      default:
+        ipv4_address: 10.213.87.20
     image: ghcr.io/benthecarman/mutinynet-ssp:master
     pull_policy: always
     user: "0:1000"
@@ -711,3 +716,12 @@ services:
       CF_TOKEN: $CF_TOKEN
       ANALYTICS_TOKEN: $ANALYTICS_TOKEN
       ADMIN_TOKEN: $ADMIN_TOKEN
+
+# Fixed 10.x subnet. The Spark authz gate (service_authz.mode: 3) admits
+# SO-to-SO calls only from 10.x peers. The operators and the SSP have fixed
+# addresses so spark-config.yaml can exclude them from rate limits.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.213.87.0/24

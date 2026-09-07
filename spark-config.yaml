@@ -34,19 +34,23 @@ lrc20:
     grpcpoolsize: 10
 
 service_authz:
-  mode: 1 # AuthzModeDisabled
+  # 3 = enforce. Internal (SO-to-SO) methods are accepted only from peers whose
+  # source address starts with "10.", so docker-compose.yml puts the Compose
+  # network on a 10.x subnet. Requests forwarded by nginx arrive from 127.0.0.1
+  # and are denied. Set 2 (warn) to log instead of deny while debugging.
+  mode: 3
   ip_allowlist: []
 
 xff_client_ip_position: 0
 
+# Only "enabled" is read from this block. Capacities come from the ratelimit
+# knobs under knobs.static_values below.
 rate_limiter:
   enabled: true
-  window: 60s
-  max_requests: 1000
-  methods: []
 
-return_detailed_errors: true
-return_detailed_panic_errors: true
+# Anonymous callers must not see internals.
+return_detailed_errors: false
+return_detailed_panic_errors: false
 
 tracing:
   enabled: false
@@ -81,3 +85,22 @@ knobs:
     spark.so.tokens.token_transaction_v3_enabled: 100
     spark.so.flow_execution.stuck_threshold_seconds: 300
     spark.so.flow_execution.coordinator_stall_threshold_seconds: 600
+    # --- Rate limits, per operator. Requests per window. ---
+    # Key format: spark.so.ratelimit.limit@<scope>[:ip|:pubkey]#<1s|1m|10m|1h|24h>
+    # where <scope> is "global", "/pkg.Service/" or "/pkg.Service/Method".
+    # Unset scopes are unlimited. The peer operator and the SSP have fixed
+    # Compose addresses (docker-compose.yml) and are excluded.
+    "spark.so.ratelimit.limit@global#1s": 500
+    "spark.so.ratelimit.limit@global:ip#1s": 50
+    "spark.so.ratelimit.limit@global:ip#1m": 1500
+    "spark.so.ratelimit.limit@/spark_authn.SparkAuthnService/:ip#1s": 5
+    "spark.so.ratelimit.limit@/spark_authn.SparkAuthnService/:ip#1m": 60
+    "spark.so.ratelimit.exclude_ips@10.213.87.10": 1
+    "spark.so.ratelimit.exclude_ips@10.213.87.11": 1
+    "spark.so.ratelimit.exclude_ips@10.213.87.20": 1
+    # --- Concurrency caps: in-flight unary and stream requests. ---
+    "spark.so.grpc.server.concurrency_limit.limit@global": 256
+    "spark.so.grpc.server.concurrency_limit.limit@global_stream": 256
+    "spark.so.grpc.server.concurrency_limit.exclude_ips@10.213.87.10": 1
+    "spark.so.grpc.server.concurrency_limit.exclude_ips@10.213.87.11": 1
+    "spark.so.grpc.server.concurrency_limit.exclude_ips@10.213.87.20": 1
