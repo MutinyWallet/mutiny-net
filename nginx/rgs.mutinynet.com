@@ -1,6 +1,10 @@
+# Snapshots are multi-megabyte static files. Cap parallel downloads per IP.
+limit_conn_zone $binary_remote_addr zone=rgs_conn:10m;
+
 server {
 	server_name rgs.mutinynet.com;
     root /var/www/rgs;
+    limit_conn_status 429;
 
 	location / {
         if ($request_method = 'OPTIONS') {
@@ -30,6 +34,8 @@ server {
 	}
 
     location /snapshot {
+        limit_conn rgs_conn 4;
+        limit_rate 4m;
         try_files $uri $uri/ /res/symlinks/$1.bin;
         autoindex on;
         rewrite ^/snapshot/(\d+)$ /snapshot/$1.bin break;

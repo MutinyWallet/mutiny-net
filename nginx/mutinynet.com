@@ -3,10 +3,20 @@ map $http_upgrade $connection_upgrade {
     '' close;
 }
 
+# Per-IP limits. nginx.conf applies realip at http level, so $binary_remote_addr
+# is the real client address behind Cloudflare.
+limit_req_zone $binary_remote_addr zone=mn_api:10m rate=20r/s;
+limit_req_zone $binary_remote_addr zone=mn_history:10m rate=2r/s;
+limit_conn_zone $binary_remote_addr zone=mn_ws:10m;
+
 server {
 	server_name mutinynet.com;
 
+    limit_req_status 429;
+    limit_conn_status 429;
+
     location /electrum-websocket {
+        limit_conn mn_ws 10;
         proxy_pass http://127.0.0.1:50050; # Point to the websocat bridge
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -19,6 +29,7 @@ server {
     }
 
 	location /api/v1/ws {
+		limit_conn mn_ws 10;
 		proxy_pass http://127.0.0.1:8999/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
@@ -70,41 +81,35 @@ server {
         add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
 
         include /root/mutiny-net/nginx/hsts.conf;
+        limit_req zone=mn_api burst=40 nodelay;
         proxy_pass http://127.0.0.1:8999;
     }
 
 
+    # Electrs bulk and maintenance routes. Nothing public needs them; the
+    # mempool backend reaches electrs on the Compose network.
+    location ^~ /api/internal/ {
+        return 404;
+    }
+
+    # Address and scripthash history. Upstream does not cap max_txs on every
+    # route, so bound the request rate instead.
+    location ~ ^/api/(address|scripthash)/[^/]+/txs {
+        limit_req zone=mn_history burst=5 nodelay;
+        include /root/mutiny-net/nginx/electrs-cors.conf;
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1:3003;
+    }
+
     location /api/ {
-        if ($request_method = 'OPTIONS') {
-            add_header 'Access-Control-Allow-Origin' '*' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
-            add_header 'Access-Control-Max-Age' 1728000 always;
-            add_header 'Content-Type' 'text/plain; charset=utf-8' always;
-            add_header 'Content-Length' 0 always;
-            return 204;
-        }
-
-        if ($request_method = 'GET') {
-            add_header 'Access-Control-Allow-Origin' '*' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
-            add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
-        }
-
-        if ($request_method = 'POST') {
-            add_header 'Access-Control-Allow-Origin' '*' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
-            add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
-        }
-
-        include /root/mutiny-net/nginx/hsts.conf;
+        limit_req zone=mn_api burst=40 nodelay;
+        include /root/mutiny-net/nginx/electrs-cors.conf;
         proxy_pass http://127.0.0.1:3003/;
     }
 
 	# mainnet API
 	location /ws {
+		limit_conn mn_ws 10;
 		proxy_pass http://127.0.0.1:8999/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;

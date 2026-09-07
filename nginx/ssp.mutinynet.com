@@ -1,8 +1,18 @@
+# Per-IP limits. nginx.conf applies realip at http level, so $binary_remote_addr
+# is the real client address.
+limit_req_zone $binary_remote_addr zone=ssp_req:10m rate=10r/s;
+limit_conn_zone $binary_remote_addr zone=ssp_conn:10m;
+
 server {
     server_name ssp.mutinynet.com;
 
+    limit_req_status 429;
+    limit_conn_status 429;
+    limit_conn ssp_conn 20;
+
     # Self-hosted Spark Service Provider (GraphQL over HTTPS)
     location / {
+        limit_req zone=ssp_req burst=20 nodelay;
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -11,8 +21,9 @@ server {
 
         proxy_read_timeout 300;
         proxy_send_timeout 300;
-        client_body_timeout 300;
-        client_max_body_size 10M;
+        # GraphQL requests are small; do not hold slow bodies open.
+        client_body_timeout 30;
+        client_max_body_size 1m;
     }
 
     listen 443 ssl; # managed by Certbot

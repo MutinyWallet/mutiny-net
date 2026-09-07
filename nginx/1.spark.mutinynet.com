@@ -1,30 +1,35 @@
+# Per-IP limits. nginx.conf applies realip at http level, so $binary_remote_addr
+# is the real client address.
+limit_req_zone $binary_remote_addr zone=spark1_req:10m rate=30r/s;
+limit_req_zone $binary_remote_addr zone=spark1_authn:10m rate=5r/s;
+limit_conn_zone $binary_remote_addr zone=spark1_conn:10m;
+
 server {
     server_name 1.spark.mutinynet.com;
+    set $spark_upstream grpcs://127.0.0.1:10011;
 
-    # Deny the SO-to-SO and test-only services. The pinned operator registers
-    # them on the public listener behind an IP allowlist that this deployment
-    # disables (service_authz.mode: 1). The operators peer over the Compose
-    # network, so this never blocks legitimate traffic.
+    limit_req_status 429;
+    limit_conn_status 429;
+    limit_conn spark1_conn 32;
+    http2_max_concurrent_streams 32;
+
+    # Deny the SO-to-SO and test-only services. The operator also enforces
+    # service_authz (only 10.x peers may call them), but keep the edge rule
+    # so a config regression in either layer is not fatal.
     location ~ ^/(mock\.MockService|spark_internal\.SparkInternalService|spark_token\.SparkTokenInternalService|dkg\.DKGService|gossip\.GossipService)/ {
         return 404;
     }
 
+    # Challenge RPCs are anonymous and cache state per call. Keep them tight.
+    location ~ ^/spark_authn\.SparkAuthnService/ {
+        limit_req zone=spark1_authn burst=10 nodelay;
+        include /root/mutiny-net/nginx/spark-grpc-proxy.conf;
+    }
+
     # gRPC endpoint (main Spark operator API)
     location / {
-        grpc_pass grpcs://127.0.0.1:10011;
-        grpc_set_header Host $host;
-        grpc_set_header X-Real-IP $remote_addr;
-        grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        grpc_set_header X-Forwarded-Proto $scheme;
-
-        # gRPC specific settings
-        grpc_read_timeout 300;
-        grpc_send_timeout 300;
-        client_body_timeout 300;
-        client_max_body_size 10M;
-
-        # Enable gRPC error details
-        grpc_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+        limit_req zone=spark1_req burst=60 nodelay;
+        include /root/mutiny-net/nginx/spark-grpc-proxy.conf;
     }
 
     listen 443 ssl; # managed by Certbot
