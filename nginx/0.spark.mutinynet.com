@@ -11,7 +11,7 @@ server {
     limit_req_status 429;
     limit_conn_status 429;
     limit_conn spark0_conn 32;
-    http2_max_concurrent_streams 32;
+    http2_max_concurrent_streams 64;
 
     # Deny the SO-to-SO and test-only services. The operator also enforces
     # service_authz (only 10.x peers may call them), but keep the edge rule
