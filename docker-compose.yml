@@ -1,12 +1,15 @@
 # Resource limits are first-cut values chosen without host measurements.
 # Tune them from `docker stats`. Bitcoin and the databases get reservations
 # only: an OOM kill there costs more than it prevents.
+# Container logs go to the host journal, which survives container recreation
+# and is searchable across restarts: `journalctl CONTAINER_NAME=spark -f`.
+# Retention is bounded on the host by host/journald-mutinynet.conf, not per
+# container. Changing the driver recreates every container.
 x-logging:
   &default-logging
-  driver: "json-file"
+  driver: "journald"
   options:
-    max-size: "50m"
-    max-file: "3"
+    tag: "{{.Name}}"
 
 services:
   # Mining-only bitcoind instance
@@ -44,7 +47,9 @@ services:
       - "38333:38333"  # p2p, must stay public
       - "127.0.0.1:38334:38334"
     healthcheck:
-      test: ["CMD", "bitcoin-cli", "-signet", "-datadir=/root/.bitcoin", "getblockchaininfo"]
+      # Healthy means mining: the tip must be under ten minutes old. A stalled
+      # miner then shows as unhealthy instead of green.
+      test: ["CMD-SHELL", "t=$$(bitcoin-cli -signet -datadir=/root/.bitcoin getblockchaininfo | jq .time) && [ $$(( $$(date +%s) - t )) -lt 600 ]"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -251,8 +256,10 @@ services:
     stop_grace_period: 1m
     entrypoint:
       /bin/electrs
+    # -vv is info. Trace (-vvvv) logs every request and thread event, which
+    # would crowd the shared journal.
     command: |
-      -vvvv
+      -vv
       --address-search
       --cookie bitcoin:$RPCPASSWORD
       --network signet
@@ -789,3 +796,6 @@ networks:
     ipam:
       config:
         - subnet: 10.213.87.0/24
+          # Dynamic addresses come from the lower half only, so they can never
+          # reach the fixed addresses above .128.
+          ip_range: 10.213.87.0/25
