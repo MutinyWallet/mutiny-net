@@ -199,19 +199,19 @@ These controls protect the public services. Deploy them in this order.
 * Vhosts define their own `limit_req_zone` and `limit_conn_zone` entries and
   include `spark-grpc-proxy.conf` and `electrs-cors.conf` from
   `/root/mutiny-net/nginx/`. Copy the vhosts as before and reload.
-* The Electrum port moves behind an nginx `stream` block. Add this line to
-  `nginx.conf` at the top level, outside `http {}`:
+* The Electrum port moves behind nginx's existing `stream {}` block. Add this
+  line inside that block in `nginx.conf`:
 
   ```
   include /root/mutiny-net/nginx/electrum-stream.conf;
   ```
 
-  This needs the stream module (`nginx-full` on Debian, or load
-  `ngx_stream_module.so`). The compose file binds electrs to
-  `127.0.0.1:50003`, and nginx listens on `50001`. Reload nginx after
-  `docker compose up -d mempool_electrs`, because both cannot own port 50001.
-  The websocat bridge on the host keeps connecting to `127.0.0.1:50001`;
-  loopback is exempt from the per-IP cap.
+  The compose file binds electrs to `127.0.0.1:50003`, and nginx listens on
+  `50001`. Reload nginx after `docker compose up -d mempool_electrs`, because
+  both cannot own port 50001. Clients use `electrum.mutinynet.com:50001`,
+  which must stay a DNS-only record; Cloudflare-proxied names cannot carry
+  raw TCP. The websocat bridge on the host keeps connecting to
+  `127.0.0.1:50001`; loopback is exempt from the per-IP cap.
 * Both operator vhosts return 404 for the SO-to-SO and mock services. Requests
   to the challenge RPCs get a tighter per-IP limit than the rest.
 
