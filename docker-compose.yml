@@ -145,6 +145,10 @@ services:
       "--protocol.simple-taproot-chans",
       "--protocol.rbf-coop-close",
       "--protocol.custom-message=513",
+      # pprof on the container only (not published). Capture during a slow start:
+      #   docker exec lnd wget -qO- http://127.0.0.1:6060/debug/pprof/goroutine?debug=2
+      #   docker exec lnd wget -qO /tmp/cpu.pprof "http://127.0.0.1:6060/debug/pprof/profile?seconds=30"
+      "--profile=6060",
     ]
     volumes:
       - ~/volumes/.lnd:/root/.lnd
