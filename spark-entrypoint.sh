@@ -186,6 +186,9 @@ fi
 envsubst '${RPCPASSWORD}' < /config/so_config.yaml > "$HOME_DIR/so_config.yaml"
 start_frost_signer
 
+# -local is required: static knobs in so_config.yaml only load in local mode.
+# Local mode also registers the anonymous MockService, which can delete
+# preimage shares and rewrite node timelocks. -disable-mock-server keeps it off.
 echo "Starting spark-operator on public port $PORT and SSP-only port $SSP_PORT..."
 exec spark-operator \
     -config "$HOME_DIR/so_config.yaml" \
@@ -201,4 +204,5 @@ exec spark-operator \
     -server-key "$HOME_DIR/server.key" \
     -ssp-grpc-port "$SSP_PORT" \
     -supported-networks signet \
-    -local
+    -local \
+    -disable-mock-server
