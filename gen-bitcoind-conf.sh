@@ -36,7 +36,6 @@ fi
 
 echo "[signet]
 rest=1
-daemon=1
 listen=1
 server=1
 acceptnonstdtxn=1
