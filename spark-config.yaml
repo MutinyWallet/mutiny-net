@@ -95,12 +95,12 @@ knobs:
     "spark.so.ratelimit.limit@global:ip#1m": 1500
     "spark.so.ratelimit.limit@/spark_authn.SparkAuthnService/:ip#1s": 5
     "spark.so.ratelimit.limit@/spark_authn.SparkAuthnService/:ip#1m": 60
-    "spark.so.ratelimit.exclude_ips@10.213.87.10": 1
-    "spark.so.ratelimit.exclude_ips@10.213.87.11": 1
-    "spark.so.ratelimit.exclude_ips@10.213.87.20": 1
+    "spark.so.ratelimit.exclude_ips@10.213.87.200": 1
+    "spark.so.ratelimit.exclude_ips@10.213.87.201": 1
+    "spark.so.ratelimit.exclude_ips@10.213.87.210": 1
     # --- Concurrency caps: in-flight unary and stream requests. ---
     "spark.so.grpc.server.concurrency_limit.limit@global": 256
     "spark.so.grpc.server.concurrency_limit.limit@global_stream": 256
-    "spark.so.grpc.server.concurrency_limit.exclude_ips@10.213.87.10": 1
-    "spark.so.grpc.server.concurrency_limit.exclude_ips@10.213.87.11": 1
-    "spark.so.grpc.server.concurrency_limit.exclude_ips@10.213.87.20": 1
+    "spark.so.grpc.server.concurrency_limit.exclude_ips@10.213.87.200": 1
+    "spark.so.grpc.server.concurrency_limit.exclude_ips@10.213.87.201": 1
+    "spark.so.grpc.server.concurrency_limit.exclude_ips@10.213.87.210": 1
