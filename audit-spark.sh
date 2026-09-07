@@ -8,11 +8,12 @@
 #
 #   ./audit-spark.sh [days]     default: 30
 #
-# The nginx access log is the strongest signal: every gRPC call through the
+# The nginx access log is the only real signal: every gRPC call through the
 # operator vhosts is logged as "POST /<pkg>.<Service>/<Method> HTTP/2.0".
-# Deleted preimage shares leave no database trace, so a clean database check
-# does not prove nothing happened. A clean access log for the whole exposure
-# window does.
+# Container logs only reach back to the last recreate. The database counts
+# are baselines for comparison over time, not indicators: refund transactions
+# are re-signed on every transfer, and preimage requests without a share are
+# normal for outgoing payments.
 set -uo pipefail
 DAYS=${1:-30}
 PATTERN='/(mock\.MockService|spark_internal\.SparkInternalService|spark_token\.SparkTokenInternalService|dkg\.DKGService|gossip\.GossipService)/'
@@ -53,10 +54,10 @@ for i in 0 1; do
     db="sparkoperator_$i"
     echo "-- $db: tree nodes updated in the last $DAYS days, by status"
     q "$db" "SELECT status, count(*) FROM tree_nodes WHERE update_time > now() - interval '$DAYS days' GROUP BY status ORDER BY 2 DESC;"
-    echo "-- $db: tree nodes whose refund transaction changed after creation (ModifyNodeTimelock rewrites it)"
+    echo "-- $db: tree nodes whose refund transaction changed after creation (normal on transfer; baseline only)"
     q "$db" "SELECT count(*) FROM tree_nodes WHERE raw_refund_tx IS NOT NULL AND update_time - create_time > interval '1 second' AND update_time > now() - interval '$DAYS days';"
-    echo "-- $db: preimage requests without a share (CleanUpPreimageShare deletes both; a mismatch is still worth a look)"
+    echo "-- $db: preimage requests without a share (normal for sends; baseline only)"
     q "$db" "SELECT count(*) FROM preimage_requests pr LEFT JOIN preimage_shares ps ON ps.preimage_request_preimage_shares = pr.id WHERE ps.id IS NULL AND pr.create_time > now() - interval '$DAYS days';"
-    echo "-- $db: signing keyshares by status (StartDkg abuse would add rows)"
+    echo "-- $db: signing keyshares by status (baseline only)"
     q "$db" "SELECT status, count(*) FROM signing_keyshares GROUP BY status;"
 done
