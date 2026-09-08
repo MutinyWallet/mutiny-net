@@ -173,7 +173,11 @@ services:
     user: "0:1000"
     logging: *default-logging
     depends_on:
-      - lnd
+      lnd:
+        # This LNDK build loses its subscription workers when LND restarts.
+        # Wait for RPC readiness and restart it after Compose changes to LND.
+        condition: service_healthy
+        restart: true
     # Peers drive log volume through custom messages, so log at info. The file
     # log under ~/volumes/lndk never rotates; the deployed image predates the
     # --log-file option, so trim that file by hand if it grows.
@@ -714,10 +718,10 @@ services:
       # Startup re-tag of 3M+ signet blocks takes minutes and blocks new-block
       # inserts; the mining API is disabled at nginx anyway.
       MEMPOOL_AUTOMATIC_POOLS_UPDATE: "false"
-      ELECTRUM_HOST: "electrs"
+      ELECTRUM_HOST: "mempool_electrs"
       ELECTRUM_PORT: "50001"
       ELECTRUM_TLS_ENABLED: "false"
-      ESPLORA_REST_API_URL: "http://electrs:3003"
+      ESPLORA_REST_API_URL: "http://mempool_electrs:3003"
       CORE_RPC_HOST: "bitcoind-services"
       CORE_RPC_PORT: "38332"
       CORE_RPC_USERNAME: "bitcoin"
