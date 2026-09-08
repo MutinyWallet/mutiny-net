@@ -242,6 +242,29 @@ use".
 
 ### Containers
 
+The faucet uses a host SSH tunnel for mainnet LND. Its listen address, the
+firewall rule, and `MAINNET_GRPC_HOST` must match the Compose network. After
+a subnet change, update all three; otherwise the faucet repeatedly exits
+while it waits for mainnet LND.
+
+For the current network, set `MAINNET_GRPC_HOST="10.213.87.1"` in `.env`.
+In `lnd-tunnel.service`, use
+`-o ExitOnForwardFailure=yes -L 10.213.87.1:10069:127.0.0.1:10009`
+with the existing SSH key and destination. Keep `Restart=always` so the
+tunnel retries if Docker has not yet created the bridge at boot. Allow
+only the Compose subnet to reach this listener:
+
+```bash
+ufw allow proto tcp from 10.213.87.0/24 to 10.213.87.1 port 10069
+systemctl daemon-reload
+systemctl restart lnd-tunnel.service
+docker compose up -d --no-deps --pull never faucet_backend
+```
+
+Remove the old subnet's tunnel firewall rule after the faucet starts.
+Check its logs for a successful mainnet LND connection and test a faucet
+API endpoint; a running container alone does not confirm readiness.
+
 * `docker compose up -d` recreates only services whose own config changed,
   plus everything when something shared changes: the network, the logging
   driver, or a `depends_on` chain. Run `docker compose up -d --dry-run` first
