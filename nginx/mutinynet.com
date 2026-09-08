@@ -96,6 +96,11 @@ server {
     # route, so bound the request rate instead.
     location ~ ^/api/(address|scripthash)/[^/]+/txs {
         limit_req zone=mn_history burst=5 nodelay;
+        # Electrs does not cap max_txs on every history route. Refuse
+        # four-digit and larger values; the defaults are 25 and 50.
+        if ($arg_max_txs ~ "^[+]?[0-9]{4,}$") {
+            return 400;
+        }
         include /root/mutiny-net/nginx/electrs-cors.conf;
         rewrite ^/api/(.*)$ /$1 break;
         proxy_pass http://127.0.0.1:3003;
@@ -103,6 +108,11 @@ server {
 
     location /api/ {
         limit_req zone=mn_api burst=40 nodelay;
+        # Electrs does not cap max_txs on every history route. Refuse
+        # four-digit and larger values; the defaults are 25 and 50.
+        if ($arg_max_txs ~ "^[+]?[0-9]{4,}$") {
+            return 400;
+        }
         include /root/mutiny-net/nginx/electrs-cors.conf;
         proxy_pass http://127.0.0.1:3003/;
     }

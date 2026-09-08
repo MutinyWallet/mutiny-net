@@ -1,6 +1,17 @@
+# Per-IP limits, mirroring mutinynet.com. nginx.conf applies realip at http
+# level, so $binary_remote_addr is the real client address behind Cloudflare.
+limit_req_zone $binary_remote_addr zone=www_api:10m rate=20r/s;
+limit_req_zone $binary_remote_addr zone=www_history:10m rate=2r/s;
+limit_conn_zone $binary_remote_addr zone=www_ws:10m;
+
 server {
 	server_name www.mutinynet.com;
+
+	limit_req_status 429;
+	limit_conn_status 429;
+
 	location /api/v1/ws {
+		limit_conn www_ws 10;
 		proxy_pass http://127.0.0.1:8999/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
@@ -35,34 +46,35 @@ server {
 	location /api/v1 {
 		rewrite ^/api/v1(.*)$ /api$1 last;
 	}
+	# Electrs bulk and maintenance routes. Nothing public needs them.
+	location ^~ /api/internal/ {
+		return 404;
+	}
+
+	# Address and scripthash history. Upstream does not cap max_txs on every
+	# route, so bound the request rate and refuse four-digit page sizes.
+	location ~ ^/api/(address|scripthash)/[^/]+/txs {
+		limit_req zone=www_history burst=5 nodelay;
+		if ($arg_max_txs ~ "^[+]?[0-9]{4,}$") {
+			return 400;
+		}
+		include /root/mutiny-net/nginx/electrs-cors.conf;
+		rewrite ^/api/(.*)$ /$1 break;
+		proxy_pass http://127.0.0.1:3003;
+	}
+
 	location /api/ {
-		if ($request_method = 'OPTIONS') {
-            add_header 'Access-Control-Allow-Origin' '*';
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
-            add_header 'Access-Control-Max-Age' 1728000;
-            add_header 'Content-Type' 'text/plain; charset=utf-8';
-            add_header 'Content-Length' 0;
-            return 204;
-        }
-        if ($request_method = 'GET') {
-            add_header 'Access-Control-Allow-Origin' '*';
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
-            add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
-        }
-        if ($request_method = 'POST') {
-            add_header 'Access-Control-Allow-Origin' '*';
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
-            add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
-        }
-		include /root/mutiny-net/nginx/hsts.conf;
+		limit_req zone=www_api burst=40 nodelay;
+		if ($arg_max_txs ~ "^[+]?[0-9]{4,}$") {
+			return 400;
+		}
+		include /root/mutiny-net/nginx/electrs-cors.conf;
 		proxy_pass http://127.0.0.1:3003/;
 	}
 
 	# mainnet API
 	location /ws {
+		limit_conn www_ws 10;
 		proxy_pass http://127.0.0.1:8999/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
