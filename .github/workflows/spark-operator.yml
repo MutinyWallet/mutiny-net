@@ -55,6 +55,7 @@ jobs:
           build-args: BUILD_JOBS=4
           tags: |
             ${{ env.IMAGE }}:master
+            ${{ env.IMAGE }}:open-ssp-instant-deposits
             ${{ env.IMAGE }}:${{ steps.pin.outputs.short }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

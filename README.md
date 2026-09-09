@@ -314,8 +314,9 @@ API endpoint; a running container alone does not confirm readiness.
   treatment.
 * Our own images use moving tags on purpose so `docker compose pull` picks up
   a new build without a commit here. The operator image is built by the
-  "Build Spark operator image" workflow from `SPARK_REF`; after pushing a
-  bump, wait for it, then pull and restart both operators. Set
+  "Build Spark operator image" workflow from `SPARK_REF` and uses the
+  `open-ssp-instant-deposits` tag by default. After pushing a source bump,
+  wait for the build, then pull and restart both operators. Set
   `SPARK_OPERATOR_TAG` to a pinned-ref tag to freeze it.
 * LNDK logs at `info` and sends its file log to `/dev/null`. Docker rotates
   stdout.

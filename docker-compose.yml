@@ -505,7 +505,7 @@ services:
     # Prebuilt by .github/workflows/spark-operator.yml so `docker compose pull`
     # picks up a SPARK_REF bump. `build` stays as a local escape hatch: run
     # `docker compose build spark` to compile the pinned ref on this host.
-    image: ghcr.io/mutinywallet/mutinynet-spark-operator:${SPARK_OPERATOR_TAG:-master}
+    image: ghcr.io/mutinywallet/mutinynet-spark-operator:${SPARK_OPERATOR_TAG:-open-ssp-instant-deposits}
     pull_policy: always
     mem_limit: 2g
     pids_limit: 1024
@@ -555,7 +555,7 @@ services:
   spark2:
     container_name: "spark2"
     # Same image as spark; the operator index comes from SPARK_INDEX below.
-    image: ghcr.io/mutinywallet/mutinynet-spark-operator:${SPARK_OPERATOR_TAG:-master}
+    image: ghcr.io/mutinywallet/mutinynet-spark-operator:${SPARK_OPERATOR_TAG:-open-ssp-instant-deposits}
     pull_policy: always
     mem_limit: 2g
     pids_limit: 1024
