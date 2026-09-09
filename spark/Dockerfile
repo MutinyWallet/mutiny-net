@@ -4,7 +4,8 @@
 # required by a self-hosted SSP.
 # Override the source and pin with build arguments.
 ARG SPARK_REPO=https://github.com/benthecarman/spark
-ARG SPARK_REF=41c1ee125e47a666827916526235f406bb1671d6
+# Includes the SSP, local startup, and rate-limit recovery fixes.
+ARG SPARK_REF=07139012b5dd2962ae28fc61d796451581c53fbe
 # Build parallelism is capped: this host runs bitcoind alongside the build and
 # a full-width build OOMs it. Raise BUILD_JOBS on a machine with more headroom.
 ARG BUILD_JOBS=2
@@ -33,6 +34,7 @@ COPY --from=src /spark/spark/go.mod /spark/spark/go.sum spark/
 RUN cd spark && go mod download
 COPY --from=src /spark/spark spark
 RUN cd spark && CGO_ENABLED=1 GOMAXPROCS=${BUILD_JOBS} go build -p ${BUILD_JOBS} -o /go/bin/spark-operator ./bin/operator
+RUN cd spark && GOMAXPROCS=${BUILD_JOBS} go test -p ${BUILD_JOBS} ./bin/operator ./so/middleware -count=1
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.13 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /bin/grpc_health_probe
