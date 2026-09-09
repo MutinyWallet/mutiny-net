@@ -120,28 +120,33 @@ docker-compose up -d
 The `spark`, `spark2`, `ldk-server`, and `ssp` services run a 2-of-2 Spark
 operator set and the MutinyNet SSP. The SSP embeds its funded Breez Spark
 wallet, so there is no JavaScript sidecar. The operator and LDK images build
-from pinned commits. The SSP image is published separately; production
-deployments should replace its moving tag with a tested immutable `sha-*` tag.
+from pinned commits. Keep the SSP image at
+`ghcr.io/benthecarman/open-ssp:master`. The Spark source revision is set in
+`spark/Dockerfile`; its startup and rate-limit fixes are committed in the
+Spark fork. The image build runs the operator and middleware tests.
 
 The operators also listen on `11010` and `11011` for the authenticated
 `SparkSspInternalService`. These ports are visible only on the Compose network:
 they have no host port mapping and are not routed by nginx. The SSP continues
 to use the public operator listeners for normal wallet operations and uses the
-dedicated listeners only for on-demand leaf splitting.
+dedicated listeners for leaf splitting and SSP deposit operations.
 
-On-demand splitting spans three repositories. Before deploying it, publish the
-Spark operator changes and the open-ssp changes, then update this repository's
-`spark/Dockerfile` `SPARK_REF` and `ssp` image to those immutable revisions.
-Local, uncommitted sibling-repository changes are not included in either Docker
-build. Do not enable the new listener against the currently pinned operator
-revision, because that binary does not recognize `--ssp-grpc-port`.
+For future updates, set `spark/Dockerfile`'s `SPARK_REF` to a compatible
+revision from open-ssp's Spark branch, then pull the published SSP image.
+Build or pull the matching operators before starting the new SSP.
+
+Before this upgrade, let pending receives and internal sends from the retired
+SSP-owned preimage flow finish on the old release. Back up the complete SSP
+and LDK data directories together. The new database migration refuses to run
+while those legacy requests remain pending. Remove `SSP_FROST_OPERATORS` and
+`SSP_LN_FEE_PPM` from `.env`; clients now create receive preimages and shares.
 
 Boot order:
 
 ```bash
 docker compose up -d bitcoind-services postgres
 docker compose up -d --build --wait spark spark2
-./spark-operator-pubkeys.sh                # copy both lines to .env
+./spark-operator-pubkeys.sh                # copy its output to .env
 install -d -m 700 ~/volumes/ssp-data
 # Existing deployments only: preserve the funded wallet identity.
 if [ ! -s ~/volumes/ssp-data/spark.mnemonic ]; then
@@ -152,13 +157,16 @@ fi
 docker compose pull ssp
 docker compose build ldk-server
 docker compose up -d --no-build --wait ldk-server ssp
-curl --fail http://127.0.0.1:5000/health   # ldk_mode must be "live"
+curl --fail http://127.0.0.1:5000/health   # basic process liveness
+# With SPARK_ADMIN_TOKEN exported from .env:
+curl --fail -H "Authorization: Bearer $SPARK_ADMIN_TOKEN" \
+  http://127.0.0.1:5000/status            # spark_error null, ldk_mode "live"
 node --env-file=.env fund-ssp.mjs
 ```
 
 Wallets use `spark-wallet-config.mutinynet.example.json` (SIGNET, custom SOs,
 `https://mutinynet.com/api` electrs, `https://ssp.mutinynet.com` SSP).
-Set its SSP identity to the `ssp_identity_pubkey` from `/health`. The two
+Set its SSP identity to `identityPublicKey` from `/identity`. The two
 operator keys must match the output of `spark-operator-pubkeys.sh`. Expose the
 SSP through `nginx/ssp.mutinynet.com` and reload nginx.
 
@@ -173,20 +181,33 @@ Notes:
   Keep the old file offline until the new SSP passes live transfer tests.
 * Compose sets `SPARK_MNEMONIC_REQUIRED=1`, so startup fails if the wallet key
   is absent. Change it only for the first boot of a new, unfunded SSP wallet.
-* `SSP_FROST_OPERATORS` is required for Lightning receives. Do not start the
-  SSP until you copy the complete helper output to `.env`.
-* The SSP does not use fake Lightning in production. Its `/health` response
-  must show `"ldk_mode":"live"`.
+* Copy `SO_IDENTITY_PUBKEYS` from the helper to `.env` before starting the SSP.
+  `SSP_FROST_THRESHOLD=2` remains the embedded wallet's signing threshold.
+* The SSP requires live Lightning. Its authenticated `/status` response must
+  show `"ldk_mode":"live"` and `"spark_error":null`. `/health` returns only
+  `{"status":"ok"}`.
 * Fund the LDK on-chain wallet and open channels with `ldk-server-cli`.
   Receives need inbound capacity. Sends need outbound capacity.
-* Lightning receives use exact SSP wallet leaves. Keep common invoice amounts
-  in the funding ladder until on-demand splitting is deployed. Once enabled,
-  the SSP can repeatedly split an owned leaf to make the requested amount and
+* Lightning receives use exact SSP wallet leaves. The configured private
+  operator listeners let the SSP split a leaf to make the requested amount and
   retain the remainder. `SSP_MIN_SPLIT_CHILD_SATS` controls the minimum value
   of either child and defaults to the 330-sat P2TR relay-dust threshold.
   Lower values deliberately create off-chain-only leaves that cannot be
-  independently relayed under default Bitcoin Core policy. Monitor `/health`
+  independently relayed under default Bitcoin Core policy. Monitor `/status`
   values under `spark`.
+* `MAX_SWAP_TOTAL_SATS` caps each swap at 1,000,000 sats by default.
+* Withdrawals and static deposits require a dedicated Bitcoin Core wallet.
+  Create, load, and fund `ssp-withdrawals` on `bitcoind-services`, then set
+  `COOP_BITCOIN_RPC_URL=http://bitcoind-services:38332/wallet/ssp-withdrawals`
+  in `.env` and recreate the SSP. The wallet must have private keys, be
+  unlocked, and have finished scanning. Keep it exclusive to this SSP and
+  include it in backups. An empty URL disables these services.
+* Instant deposit advances also require positive values for both
+  `SSP_INSTANT_MAX_OUTSTANDING_SATS` and `SSP_INSTANT_MAX_DEPOSIT_SATS`.
+  Both default to zero. Set limits only after funding the dedicated Core
+  wallet and the Spark wallet. See the upstream
+  [deployment runbook](https://github.com/benthecarman/open-ssp/blob/25eec4a8c492a16a4d1962b7115430181a8200ad/docs/DEPLOY.md)
+  for liquidity and recovery requirements.
 * `reset-spark.sh` asks for confirmation and deletes all operator, SSP, and
   embedded-wallet state. `--full` also deletes LDK wallet and channel state.
 
@@ -216,6 +237,12 @@ These controls protect the public services. Deploy them in this order.
   to the challenge RPCs get a tighter per-IP limit than the rest.
 
 ### Spark authorization
+
+Set `SSP_INTERNAL_ALLOWED_IDENTITIES` in `.env` to the wallet public key
+returned by `https://ssp.mutinynet.com/identity`. Both operators use this
+comma-separated allowlist to authorize private SSP requests. Recreate both
+operators after a change. An empty list denies static-deposit settlement and
+private wallet queries, even when the SSP connects from the internal network.
 
 `spark-config.yaml` sets `service_authz.mode: 3` (enforce). The operator then
 accepts internal methods only from peers whose source address starts with

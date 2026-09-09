@@ -1,7 +1,6 @@
 #!/bin/bash
 # Print the operator-derived env for .env:
 #   SO_IDENTITY_PUBKEYS  - embedded SSP wallet (comma-separated pubkeys)
-#   SSP_FROST_OPERATORS  - SSP (JSON; used to encrypt preimage shares per SO)
 # Run after spark/spark2 first boot (keys persist in ~/volumes/spark[N]).
 # Re-run after reset-spark.sh: the operator identities are regenerated.
 set -euo pipefail
@@ -19,11 +18,4 @@ if [[ ! "$P0" =~ ^0[23][0-9a-f]{64}$ ]] || \
     exit 1
 fi
 
-ID0="0000000000000000000000000000000000000000000000000000000000000001"
-ID1="0000000000000000000000000000000000000000000000000000000000000002"
-ADDR0="${SPARK_OPERATOR_0_ADDRESS:-https://0.spark.mutinynet.com}"
-ADDR1="${SPARK_OPERATOR_1_ADDRESS:-https://1.spark.mutinynet.com}"
-
 echo "SO_IDENTITY_PUBKEYS=$P0,$P1"
-printf 'SSP_FROST_OPERATORS=[{"id":0,"identifier":"%s","address":"%s","identityPublicKey":"%s"},{"id":1,"identifier":"%s","address":"%s","identityPublicKey":"%s"}]\n' \
-  "$ID0" "$ADDR0" "$P0" "$ID1" "$ADDR1" "$P1"

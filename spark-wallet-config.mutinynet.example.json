@@ -1,5 +1,5 @@
 {
-  "_comment": "Wallet config for MutinyNet self-hosted Spark (SIGNET). sspClientOptions.identityPublicKey is the SSP identity from https://ssp.mutinynet.com/health.",
+  "_comment": "Wallet config for MutinyNet self-hosted Spark (SIGNET). Set sspClientOptions.identityPublicKey to identityPublicKey from https://ssp.mutinynet.com/identity.",
   "network": "SIGNET",
   "signingOperators": {
     "0000000000000000000000000000000000000000000000000000000000000001": {

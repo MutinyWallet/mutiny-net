@@ -33,9 +33,9 @@ async function rpc(method, params = [], wallet = false) {
   return value.result;
 }
 
-async function admin(path, body) {
+async function admin(path, body, method = "POST") {
   const response = await fetch(`${SSP_URL}${path}`, {
-    method: "POST",
+    method,
     headers: {
       Authorization: `Bearer ${ADMIN_TOKEN}`,
       "Content-Type": "application/json",
@@ -86,5 +86,8 @@ for (const deposit of deposits) {
   });
 }
 
-const health = await (await fetch(`${SSP_URL}/health`)).json();
-console.log(`SSP Spark balance: ${health.spark.available_sats} sats`);
+const status = await admin("/status", undefined, "GET");
+if (status.spark_error || !status.spark) {
+  throw new Error(status.spark_error ?? "SSP Spark wallet status is unavailable");
+}
+console.log(`SSP Spark balance: ${status.spark.available_sats} sats`);

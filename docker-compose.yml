@@ -144,7 +144,9 @@ services:
       "--coin-selection-strategy=random",
       "--protocol.simple-taproot-chans",
       "--protocol.rbf-coop-close",
-      "--protocol.custom-message=513",
+      # BOLT12 invoice requests and replies can arrive from peers without
+      # a channel to this public introduction node. Keep the rate limits.
+      "--protocol.onion-msg-relay-all",
       # pprof on the container only (not published). Capture during a slow start:
       #   docker exec lnd wget -qO- http://127.0.0.1:6060/debug/pprof/goroutine?debug=2
       #   docker exec lnd wget -qO /tmp/cpu.pprof "http://127.0.0.1:6060/debug/pprof/profile?seconds=30"
@@ -529,6 +531,7 @@ services:
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
       - RPCPASSWORD=$RPCPASSWORD
       - SPARK_INDEX=0
+      - SSP_INTERNAL_ALLOWED_IDENTITIES=${SSP_INTERNAL_ALLOWED_IDENTITIES:-}
     volumes:
       - ~/volumes/spark:/home/spark
       - ~/volumes/spark-shared:/home/spark-shared
@@ -578,6 +581,7 @@ services:
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
       - RPCPASSWORD=$RPCPASSWORD
       - SPARK_INDEX=1
+      - SSP_INTERNAL_ALLOWED_IDENTITIES=${SSP_INTERNAL_ALLOWED_IDENTITIES:-}
     volumes:
       - ~/volumes/spark2:/home/spark
       - ~/volumes/spark-shared:/home/spark-shared
@@ -635,7 +639,8 @@ services:
     networks:
       default:
         ipv4_address: 10.213.87.210
-    image: ghcr.io/benthecarman/mutinynet-ssp:master
+    # Published by open-ssp after its Rust and Breez SDK acceptance checks.
+    image: ghcr.io/benthecarman/open-ssp:master
     pull_policy: always
     user: "0:1000"
     logging: *default-logging
@@ -669,23 +674,25 @@ services:
       SSP_OPERATOR_HOSTS: spark.minikube.local:11010,spark2.minikube.local:11011
       SSP_OPERATOR_CERT_FILES: /spark-tls/server_0.crt,/spark-tls/server_1.crt
       SSP_MIN_SPLIT_CHILD_SATS: ${SSP_MIN_SPLIT_CHILD_SATS:-330}
+      MAX_SWAP_TOTAL_SATS: ${MAX_SWAP_TOTAL_SATS:-1000000}
+      SSP_INSTANT_MAX_OUTSTANDING_SATS: ${SSP_INSTANT_MAX_OUTSTANDING_SATS:-0}
+      SSP_INSTANT_MAX_DEPOSIT_SATS: ${SSP_INSTANT_MAX_DEPOSIT_SATS:-0}
+      # Optional dedicated Core wallet for withdrawals and static deposits.
+      # Leave the URL empty until the wallet is created, loaded, and funded.
+      COOP_BITCOIN_RPC_URL: ${COOP_BITCOIN_RPC_URL:-}
+      COOP_BITCOIN_RPC_USER: bitcoin
+      COOP_BITCOIN_RPC_PASSWORD: ${RPCPASSWORD}
+      COOP_EXIT_FEE_SATS: ${COOP_EXIT_FEE_SATS:-0}
       SPARK_ADMIN_TOKEN: ${SPARK_ADMIN_TOKEN:?set SPARK_ADMIN_TOKEN}
       LDK_GRPC_ADDR: ldk-server:3536
       LDK_API_KEY_FILE: /ldk-data/signet/api_key
       LDK_TLS_CERT_FILE: /ldk-data/tls.crt
-      SSP_LN_FEE_PPM: 0
       SSP_SWAP_FEE_SATS: 0
-      # Operator set the SSP encrypts preimage shares to (lightning receive).
-      # Without it the SSP refuses to mint a claimable invoice and logs
-      # "SSP_FROST_OPERATORS unset or invalid; cannot store shares".
-      # Regenerate with ./spark-operator-pubkeys.sh after reset-spark.sh.
-      # This is empty only during the first operator boot. Set it before the
-      # SSP starts. See the boot sequence in README.md.
-      SSP_FROST_OPERATORS: ${SSP_FROST_OPERATORS:-}
+      # Wallet signing threshold; receive preimage shares come from clients.
       SSP_FROST_THRESHOLD: 2
       RUST_LOG: ${SSP_RUST_LOG:-info}
     healthcheck:
-      test: ["CMD", "mutinynet-ssp", "healthcheck"]
+      test: ["CMD", "open-ssp", "healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 18
