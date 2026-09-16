@@ -447,8 +447,10 @@ services:
       ARK_SERVER_URL: "https://mutinynet.arkade.sh"
       IS_MAINNET: "false"
       DB_PATH: "/data/arkade-wallet.sqlite"
-      MAX_SEND: "100000"
-      MIN_BALANCE: "100000"
+      MAX_SEND: "1000000"
+      # Keep the low-water mark above MAX_SEND so the wallet tops up before it
+      # can no longer service a full-size request.
+      MIN_BALANCE: "2000000"
       REPLENISH_AMOUNT: "1000000"
       # Replenish from the local faucet backend on the internal network.
       FAUCET_API: "http://faucet_backend:3001"
