@@ -469,6 +469,7 @@ services:
       LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/fortune.macaroon"
       INVOICE_AMOUNT_SATS: "100"
       L402_ROOT_KEY: $L402_ROOT_KEY
+      PUBLIC_URL: "https://fortune.mutinynet.com"
     user: "0:1000"
     logging: *default-logging
     restart: always
