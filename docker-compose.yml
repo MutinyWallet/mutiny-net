@@ -3,7 +3,7 @@
 # only: an OOM kill there costs more than it prevents.
 # Container logs go to the host journal, which survives container recreation
 # and is searchable across restarts: `journalctl CONTAINER_NAME=spark -f`.
-# Retention is bounded on the host by host/journald-mutinynet.conf, not per
+# Retention is bounded on the host by host/journald-zz-mutinynet.conf, not per
 # container. Changing the driver recreates every container.
 x-logging:
   &default-logging

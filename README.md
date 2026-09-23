@@ -299,9 +299,14 @@ API endpoint; a running container alone does not confirm readiness.
   appear only when you mean it; each restart costs a block index reload.
 * Container logs go to the host journal (`journalctl CONTAINER_NAME=spark -f`
   or `docker logs`). They survive container recreation. Retention is bounded
-  by `host/journald-mutinynet.conf`, installed to
-  `/etc/systemd/journald.conf.d/`. Switching the driver recreates every
-  container, so do it in a planned window.
+  by `host/journald-zz-mutinynet.conf`, installed to
+  `/etc/systemd/journald.conf.d/zz-mutinynet.conf`. Keep the `zz-` prefix:
+  systemd merges drop-ins in filename order across directories, and rsyslog
+  ships one named `syslog.conf` that otherwise wins. That drop-in also sets
+  `ForwardToSyslog=no`, which silences rsyslog entirely -- `/var/log/syslog`,
+  `auth.log` and `kern.log` are no longer written, so read the journal
+  instead. Switching the driver recreates every container, so do it in a
+  planned window.
 * The miner's health check fails when the chain tip is older than ten
   minutes, so a stalled miner shows as unhealthy. The services node only
   checks RPC.
