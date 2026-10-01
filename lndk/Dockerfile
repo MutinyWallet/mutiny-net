@@ -1,11 +1,11 @@
 #################
 # Builder image #
 #################
-FROM rust:1.85-bookworm AS builder
+FROM rust:1.88-bookworm AS builder
 
 # References for lndk
 ARG LNDK_SOURCE=https://github.com/lndk-org/lndk.git
-ARG LNDK_REF=b50e09c338b429dbd1eb26395e051b62ae30d71f
+ARG LNDK_REF=e0b23440a3a3c259122d0aefc1a5f4fd928b323e
 
 # Add utils
 RUN apt-get update \
