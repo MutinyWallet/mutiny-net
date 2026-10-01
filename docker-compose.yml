@@ -350,7 +350,7 @@ services:
     container_name: "nutshell"
     mem_limit: 1g
     pids_limit: 256
-    image: 'cashubtc/nutshell:0.20.3'
+    image: 'cashubtc/nutshell:0.21.0'
     logging: *default-logging
     restart: always
     stop_grace_period: 1m
