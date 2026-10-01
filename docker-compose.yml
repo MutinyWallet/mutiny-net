@@ -96,7 +96,7 @@ services:
     container_name: "lnd"
     mem_limit: 3g
     pids_limit: 512
-    image: lightninglabs/lnd:v0.21.3-beta
+    image: lightninglabs/lnd:v0.21.4-beta
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -294,7 +294,7 @@ services:
     container_name: "cashu-lnd"
     mem_limit: 3g
     pids_limit: 512
-    image: lightninglabs/lnd:v0.21.3-beta
+    image: lightninglabs/lnd:v0.21.4-beta
     user: "0:1000"
     logging: *default-logging
     restart: always
