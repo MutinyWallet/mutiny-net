@@ -437,7 +437,7 @@ services:
     container_name: "arkade-daemon"
     mem_limit: 512m
     pids_limit: 256
-    image: ghcr.io/kukks/arkade-faucet-daemon:latest
+    image: ghcr.io/kukks/arkade-faucet-daemon:0.2.0
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -447,9 +447,8 @@ services:
       ARK_SERVER_URL: "https://mutinynet.arkade.sh"
       IS_MAINNET: "false"
       DB_PATH: "/data/arkade-wallet.sqlite"
-      MAX_SEND: "1000000"
-      # Keep the low-water mark above MAX_SEND so the wallet tops up before it
-      # can no longer service a full-size request.
+      # Keep the low-water mark above the faucet's 1M per-request cap so the wallet
+      # tops up before it can no longer service a full-size request.
       MIN_BALANCE: "2000000"
       REPLENISH_AMOUNT: "1000000"
       # Replenish from the local faucet backend on the internal network.
