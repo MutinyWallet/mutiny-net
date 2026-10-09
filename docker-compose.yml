@@ -417,10 +417,9 @@ services:
       ANALYTICS_TOKEN: $ANALYTICS_TOKEN
       USERS_DB_PATH: "/root/faucet_backend/users.db"
       ADMIN_TOKEN: $ADMIN_TOKEN
-      MAINNET_GRPC_HOST: ${MAINNET_GRPC_HOST}
-      MAINNET_GRPC_PORT: "10069"
-      MAINNET_TLS_CERT_PATH: "/root/faucet_backend/tls.cert"
-      MAINNET_ADMIN_MACAROON_PATH: "/root/faucet_backend/reorg.macaroon"
+      MAINNET_LDK_SERVER_URL: "ldk-server.tail56f8c.ts.net:3536"
+      MAINNET_LDK_SERVER_TLS_CERT_PATH: "/root/faucet_backend/mainnet-ldk-server.crt"
+      MAINNET_LDK_SERVER_MACAROON_PATH: "/root/faucet_backend/mainnet-ldk-server.macaroon"
       ARKADE_DAEMON_URL: "http://arkade-daemon:8080"
       ARKADE_INTERNAL_TOKEN: $ARKADE_INTERNAL_TOKEN
     user: "0:1000"
