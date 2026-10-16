@@ -436,7 +436,7 @@ services:
     container_name: "arkade-daemon"
     mem_limit: 512m
     pids_limit: 256
-    image: ghcr.io/kukks/arkade-faucet-daemon:latest
+    image: ghcr.io/kukks/arkade-faucet-daemon:0.2.0
     user: "0:1000"
     logging: *default-logging
     restart: always
