@@ -4,12 +4,13 @@
 #   nginx/deploy.sh            link, test, reload
 #   nginx/deploy.sh --check    report drift only; exit 1 if any
 #
-# Every vhost in this directory becomes a symlink in sites-available and
-# sites-enabled, and nginx.conf is linked too. A differing copy that was
-# not a link is backed up beside itself before it is replaced. After this
-# runs once, a `git pull` changes the live config, and the reload here is
-# what makes nginx read it. `nginx -t` runs before the reload, and nginx
-# keeps the old config if the test fails.
+# Every vhost in this directory, and the catch-all `default`, becomes a
+# symlink in sites-available and sites-enabled, and nginx.conf is linked
+# too. A differing copy that was not a link is backed up beside itself
+# before it is replaced. After this runs once, a `git pull` changes the
+# live config, and the reload here is what makes nginx read it. `nginx -t`
+# runs before the reload, and nginx keeps the old config if the test
+# fails.
 set -euo pipefail
 REPO_DIR=$(cd "$(dirname "$0")" && pwd)
 CHECK=0
@@ -36,7 +37,7 @@ link() {
 }
 
 link "$REPO_DIR/nginx.conf" /etc/nginx/nginx.conf
-for f in "$REPO_DIR"/*mutinynet.com; do
+for f in "$REPO_DIR"/*mutinynet.com "$REPO_DIR/default"; do
     name=$(basename "$f")
     link "$f" "/etc/nginx/sites-available/$name"
     link "/etc/nginx/sites-available/$name" "/etc/nginx/sites-enabled/$name"
