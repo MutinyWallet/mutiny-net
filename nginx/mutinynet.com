@@ -6,7 +6,7 @@ map $http_upgrade $connection_upgrade {
 # Per-IP limits. nginx.conf applies realip at http level, so $binary_remote_addr
 # is the real client address behind Cloudflare.
 limit_req_zone $binary_remote_addr zone=mn_api:10m rate=20r/s;
-limit_req_zone $binary_remote_addr zone=mn_history:10m rate=2r/s;
+limit_req_zone $binary_remote_addr zone=mn_history:10m rate=10r/s;
 limit_conn_zone $binary_remote_addr zone=mn_ws:10m;
 
 server {
@@ -95,7 +95,7 @@ server {
     # Address and scripthash history. Upstream does not cap max_txs on every
     # route, so bound the request rate instead.
     location ~ ^/api/(address|scripthash)/[^/]+/txs {
-        limit_req zone=mn_history burst=5 nodelay;
+        limit_req zone=mn_history burst=20 nodelay;
         # Electrs does not cap max_txs on every history route. Refuse
         # four-digit and larger values; the defaults are 25 and 50.
         if ($arg_max_txs ~ "^[+]?[0-9]{4,}$") {
