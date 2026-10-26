@@ -1,0 +1,14 @@
+# Install as /etc/logrotate.d/relay-mempool (a copy: logrotate wants
+# root-owned regular files there). Check with `logrotate -d` after.
+#
+# Root's crontab appends broadcast_txs.sh output to this file every
+# minute. It reopens the file each run, so no copytruncate is needed.
+/var/log/relay_mempool.log {
+	daily
+	rotate 7
+	compress
+	delaycompress
+	missingok
+	notifempty
+	create 0644 root root
+}
