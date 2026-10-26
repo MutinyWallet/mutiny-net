@@ -1,0 +1,13 @@
+# Install from the repo checkout so `git pull` updates it:
+#   systemctl link /root/mutiny-net/host/mutinynet-prune-blocks.service
+#   systemctl enable --now /root/mutiny-net/host/mutinynet-prune-blocks.timer
+[Unit]
+Description=Prune old blocks from the mempool database daily
+
+[Timer]
+OnCalendar=*-*-* 04:20:00
+RandomizedDelaySec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

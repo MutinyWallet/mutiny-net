@@ -318,6 +318,10 @@ faucet API endpoint; a running container alone does not confirm readiness.
 * `mutinynet-mem.timer` (in `host/`) records host and per-container memory in
   the journal every five minutes. `host/mem-report.sh [since]` summarises it.
   `need` is used plus swapped memory, the figure to check before resizing.
+* `mutinynet-prune-blocks.timer` (in `host/`) keeps only the newest 20000 rows
+  in mempool's `blocks` table. The backend never deletes blocks, and its hourly
+  indexer scans the whole table; at 3.8M rows that saturated the disk for
+  minutes every hour. Older blocks are refetched from electrs when viewed.
 * Both bitcoind containers run bitcoind as PID 1 and restart when it exits.
   Both have health checks.
 * bitcoind whitelists only the Compose subnet. Public peers get default

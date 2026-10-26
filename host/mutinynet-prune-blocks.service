@@ -1,0 +1,9 @@
+# Trims mempool's blocks table. See prune-mempool-blocks.sh.
+[Unit]
+Description=Prune old blocks from the mempool database
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/root/mutiny-net/host/prune-mempool-blocks.sh
