@@ -317,7 +317,9 @@ faucet API endpoint; a running container alone does not confirm readiness.
   Bitcoin and the databases have reservations only.
 * `mutinynet-mem.timer` (in `host/`) records host and per-container memory in
   the journal every five minutes. `host/mem-report.sh [since]` summarises it.
-  `need` is used plus swapped memory, the figure to check before resizing.
+  `need` is used plus swapped memory, which overstates RAM in use when swap
+  is cold. Check `psi` (time stalled on memory) and `swapin` (pages read back
+  per second) too: both near zero means the box is not short of memory.
 * `mutinynet-prune-blocks.timer` (in `host/`) keeps only the newest 20000 rows
   in mempool's `blocks` table. The backend never deletes blocks, and its hourly
   indexer scans the whole table; at 3.8M rows that saturated the disk for

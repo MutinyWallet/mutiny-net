@@ -1,5 +1,6 @@
 #!/bin/bash
-# Summarise the samples from mutinynet-mem.timer. All figures are MiB.
+# Summarise the samples from mutinynet-mem.timer. Memory figures are MiB, psi is
+# a percentage of time stalled on memory, swapin is pages read back per second.
 # Usage: mem-report.sh [journalctl --since value, default "7 days ago"]
 set -euo pipefail
 
@@ -11,17 +12,30 @@ if [[ -z $samples ]]; then
     exit 1
 fi
 
-echo "$(wc -l <<<"$samples") samples since $since"
-echo
-for key in used swap need avail; do
-    grep -o "^.*|" <<<"$samples" | grep -o "\b$key=[0-9]*" | cut -d= -f2 | sort -n |
-        awk -v key="$key" '
+# Print min/avg/p95/max of the numbers on stdin, one per line.
+stats() {
+    sort -n | awk -v key="$1" '
         { v[NR] = $1; sum += $1 }
         END {
+            if (NR == 0) { printf "%-7s no data\n", key; exit }
             p95 = int(NR * 0.95); if (p95 < 1) p95 = 1
-            printf "%-6s min %6d  avg %6d  p95 %6d  max %6d\n", key, v[1], sum / NR, v[p95], v[NR]
+            printf "%-7s min %8.2f  avg %8.2f  p95 %8.2f  max %8.2f\n", key, v[1], sum / NR, v[p95], v[NR]
         }'
+}
+
+# Print the value of host field $1 from each sample that has it.
+field() {
+    grep -o "^.*|" <<<"$samples" | grep -o "\b$1=[0-9.]*" | cut -d= -f2 || true
+}
+
+echo "$(wc -l <<<"$samples") samples since $since"
+echo
+for key in used swap need avail psi; do
+    field "$key" | stats "$key"
 done
+# swapin is a running counter; samples are five minutes apart. A drop means
+# the host rebooted, so skip that interval.
+field swapin | awk 'NR > 1 && $1 >= prev { print ($1 - prev) / 300 } { prev = $1 }' | stats swapin
 
 echo
 echo "Peak per container (anon + swap):"
