@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim as builder
+FROM debian:trixie-slim as builder
 
 ARG BITCOIN_VERSION="2fda7bfc027e"
 ARG TARGETARCH
@@ -26,7 +26,7 @@ RUN if [ -z "$TRIPLET" ]; then \
      mkdir -p bin && \
      tar -xzvf "${BITCOIN_FILE}" -C /tmp/bin --strip-components=2 "bitcoin-${BITCOIN_VERSION}/bin/bitcoin-cli" "bitcoin-${BITCOIN_VERSION}/bin/bitcoind" "bitcoin-${BITCOIN_VERSION}/bin/bitcoin-wallet" "bitcoin-${BITCOIN_VERSION}/bin/bitcoin-util"
 
-FROM debian:bullseye-slim as custom-signet-bitcoin
+FROM debian:trixie-slim as custom-signet-bitcoin
 
 LABEL org.opencontainers.image.authors="NBD"
 LABEL org.opencontainers.image.licenses=MIT
@@ -65,7 +65,7 @@ ENV EXTERNAL_IP=${EXTERNAL_IP:-""}
 VOLUME $BITCOIN_DIR
 EXPOSE 28332 28333 28334 38332 38333 38334
 RUN  apt-get update && \
-     apt-get install -qq --no-install-recommends procps python3 python3-pip jq && \
+     apt-get install -qq --no-install-recommends procps python3 jq && \
      apt-get clean
 COPY --from=builder "/tmp/bin" /usr/local/bin 
 COPY docker-entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -73,7 +73,6 @@ COPY miner_imports /usr/local/bin
 COPY miner /usr/local/bin/miner
 COPY *.sh /usr/local/bin/
 COPY rpcauth.py /usr/local/bin/rpcauth.py
-RUN pip3 install setuptools
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
