@@ -38,6 +38,12 @@ services:
       WHITELIST: "10.213.87.0/24"  # Compose peers only; the image default is 0.0.0.0/0
       DBCACHE: "100"
       COINSTATSINDEX: "0"  # Mining does not require historical UTXO statistics
+      # custom_signet holds every coinbase since launch and takes GBs of RAM
+      # when loaded. Sign with a small wallet instead. Coinbases still pay
+      # MINE_ADDRESS.txt, which is in custom_signet, so no loaded wallet grows
+      # with each block and there is nothing to consolidate.
+      MINER_WALLET: "miner"
+      CONSOLIDATE_INTERVAL: "0"
       CF_TOKEN: $CF_TOKEN
     ports:
       - "127.0.0.1:28332:28332"

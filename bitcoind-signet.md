@@ -8,6 +8,9 @@
 * `PRIVKEY` - private key of signet signer (**mining mode only**)
   * if `MINERENABLED=1` and not provided will generate this
 * `MINETO` - mine to a static address, if not provided will make new address for each block (**mining mode only**)
+* `MINER_WALLET` - wallet that signs blocks, default `custom_signet` (**mining mode only**)
+  * if it does not exist, it is created at startup and the signing key is imported from `PRIVKEY.txt`
+* `CONSOLIDATE_INTERVAL` - sweep the miner wallet into the mining address every N blocks, default `10`, `0` disables (**mining mode only**)
 * `SIGNETCHALLENGE` - sets the valid block producer for this signet
   * if `MINERENABLED=1` and not provided will generate this, if provded PRIVKEY also must be populated
   * Requied for client-mode

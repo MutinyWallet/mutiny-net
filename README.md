@@ -81,7 +81,7 @@ blocks at min-difficulty solve fast enough to beat the next loop iteration:
 ```bash
 docker exec bitcoind-miner sh -c '
   miner --debug \
-        --cli="bitcoin-cli -datadir=/root/.bitcoin -rpcwallet=custom_signet" \
+        --cli="bitcoin-cli -datadir=/root/.bitcoin -rpcwallet=miner" \
         generate \
         --grind-cmd="bitcoin-util grind" \
         --addr=tb1qd28npep0s8frcm3y7dxqajkcy2m40eysplyr9v \

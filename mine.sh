@@ -1,12 +1,13 @@
 #!/bin/bash
 set -Eeuo pipefail
 # Define mining constants
-CLI="bitcoin-cli -datadir=${BITCOIN_DIR} -rpcwallet=custom_signet"
+MINER_WALLET=${MINER_WALLET:-custom_signet}
+CLI="bitcoin-cli -datadir=${BITCOIN_DIR} -rpcwallet=${MINER_WALLET}"
 GRIND="bitcoin-util grind"
 
 NBITS=${NBITS:-"1e0377ae"} #minimum difficulty in signet
 
-# UTXO consolidation interval
+# UTXO consolidation interval in blocks, 0 disables it
 CONSOLIDATE_INTERVAL=${CONSOLIDATE_INTERVAL:-10}
 
 echo "Waiting until Chain tip age is < $CHAIN_TIP_AGE seconds before mining start..."
@@ -16,7 +17,7 @@ while true; do
     if [[ -f "${BITCOIN_DIR}/MINE_ADDRESS.txt" ]]; then
         ADDR=$(cat ~/.bitcoin/MINE_ADDRESS.txt)
     else
-        ADDR=${MINETO:-$(bitcoin-cli -rpcwallet=custom_signet getnewaddress)}
+        ADDR=${MINETO:-$($CLI getnewaddress)}
     fi
     if [[ -f "${BITCOIN_DIR}/BLOCKPRODUCTIONDELAY.txt" ]]; then
         BLOCKPRODUCTIONDELAY_OVERRIDE=$(cat ~/.bitcoin/BLOCKPRODUCTIONDELAY.txt)
@@ -37,7 +38,7 @@ while true; do
 
     # Check block count and consolidate UTXOs every N blocks
     BLOCK_COUNT=$($CLI getblockcount)
-    if [ $((BLOCK_COUNT % CONSOLIDATE_INTERVAL)) -eq 0 ]; then
+    if [[ $CONSOLIDATE_INTERVAL -gt 0 && $((BLOCK_COUNT % CONSOLIDATE_INTERVAL)) -eq 0 ]]; then
         echo "Consolidating UTXOs at block $BLOCK_COUNT..."
         consolidate_utxos.sh || echo "Warning: UTXO consolidation failed"
     fi

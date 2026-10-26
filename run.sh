@@ -30,6 +30,7 @@ echo $magic > /root/.bitcoin/MAGIC.txt
 
 # if in mining mode
 if [[ "$MINERENABLED" == "1" ]]; then
+    ensure-miner-wallet.sh
     mine.sh &
 fi
 
