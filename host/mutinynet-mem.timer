@@ -1,0 +1,13 @@
+# Install from the repo checkout so `git pull` updates it:
+#   systemctl link /root/mutiny-net/host/mutinynet-mem.service
+#   systemctl enable --now /root/mutiny-net/host/mutinynet-mem.timer
+# Read a summary with `host/mem-report.sh [since]`.
+[Unit]
+Description=Sample Mutinynet memory use every 5 minutes
+
+[Timer]
+OnCalendar=*:0/5
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

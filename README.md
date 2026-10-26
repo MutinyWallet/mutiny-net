@@ -315,6 +315,9 @@ faucet API endpoint; a running container alone does not confirm readiness.
 * Every service has `pids_limit`, and most have `mem_limit`. The values are a
   first cut. Watch `docker stats` and raise a limit before it causes restarts.
   Bitcoin and the databases have reservations only.
+* `mutinynet-mem.timer` (in `host/`) records host and per-container memory in
+  the journal every five minutes. `host/mem-report.sh [since]` summarises it.
+  `need` is used plus swapped memory, the figure to check before resizing.
 * Both bitcoind containers run bitcoind as PID 1 and restart when it exits.
   Both have health checks.
 * bitcoind whitelists only the Compose subnet. Public peers get default

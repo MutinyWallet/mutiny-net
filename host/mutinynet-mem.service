@@ -1,0 +1,7 @@
+# Records one memory sample in the journal. See mem-sample.sh.
+[Unit]
+Description=Sample Mutinynet memory use
+
+[Service]
+Type=oneshot
+ExecStart=/root/mutiny-net/host/mem-sample.sh
