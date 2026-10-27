@@ -1,6 +1,6 @@
 # Self-contained ldk-server image for MutinyNet (bitcoind backend).
 # Clones pinned upstream. Override with --build-arg LDK_SERVER_REF=<sha>.
-ARG LDK_SERVER_REF=6d6d810714706c225ce7effc2163eff6a1b54221
+ARG LDK_SERVER_REF=762bc473342c8f945475785ec6743a9b26f56aff
 
 # Capped for the same reason as spark/Dockerfile: bitcoind shares this host.
 ARG BUILD_JOBS=2

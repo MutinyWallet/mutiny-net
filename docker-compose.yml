@@ -635,7 +635,7 @@ services:
       # Host exposure stays loopback-only via the 127.0.0.1:3536 port mapping.
       - LDK_SERVER_NODE_GRPC_SERVICE_ADDRESS=0.0.0.0:3536
     healthcheck:
-      test: ["CMD-SHELL", "test -r /home/ldk/signet/api_key && ldk-server-cli --base-url localhost:3536 --api-key $$(od -A n -t x1 /home/ldk/signet/api_key | tr -d ' \\n') --tls-cert /home/ldk/tls.crt get-node-info >/dev/null"]
+      test: ["CMD-SHELL", "test -r /home/ldk/signet/macaroons/admin.macaroon && ldk-server-cli --base-url localhost:3536 --macaroon $$(tr -d '[:space:]' < /home/ldk/signet/macaroons/admin.macaroon) --tls-cert /home/ldk/tls.crt get-node-info >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -693,7 +693,7 @@ services:
       COOP_EXIT_FEE_SATS: ${COOP_EXIT_FEE_SATS:-0}
       SPARK_ADMIN_TOKEN: ${SPARK_ADMIN_TOKEN:?set SPARK_ADMIN_TOKEN}
       LDK_GRPC_ADDR: ldk-server:3536
-      LDK_API_KEY_FILE: /ldk-data/signet/api_key
+      LDK_MACAROON_FILE: /ldk-data/signet/macaroons/admin.macaroon
       LDK_TLS_CERT_FILE: /ldk-data/tls.crt
       SSP_SWAP_FEE_SATS: 0
       # Wallet signing threshold; receive preimage shares come from clients.
