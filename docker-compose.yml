@@ -715,7 +715,7 @@ services:
       BACKEND_MAINNET_HTTP_HOST: "api"
       LIGHTNING: "true"
       MINING_DASHBOARD: "false"
-    image: mempool/frontend:v3.3.1
+    image: mempool/frontend:v3.3.2
     user: "0:1000"
     logging: *default-logging
     restart: always
@@ -753,7 +753,7 @@ services:
       LND_TLS_CERT_PATH: "/root/.lnd/tls.cert"
       LND_MACAROON_PATH: "/root/.lnd/data/chain/bitcoin/signet/readonly.macaroon"
       LND_REST_API_URL: "https://lnd:8081"
-    image: mempool/backend:v3.3.1
+    image: mempool/backend:v3.3.2
     logging: *default-logging
     user: "0:1000"
     restart: always
