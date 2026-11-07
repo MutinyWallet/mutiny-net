@@ -205,4 +205,5 @@ exec spark-operator \
     -ssp-grpc-port "$SSP_PORT" \
     -supported-networks signet \
     -local \
-    -disable-mock-server
+    -disable-mock-server \
+    -log-level info

@@ -272,10 +272,11 @@ services:
     stop_grace_period: 1m
     entrypoint:
       /bin/electrs
-    # -vv is info. Trace (-vvvv) logs every request and thread event, which
-    # would crowd the shared journal.
+    # -v is warn. Info (-vv) logs a line per HTTP request, about 90 lines a
+    # second at our traffic, which pushed the shared journal past journald's
+    # file limit within hours.
     command: |
-      -vv
+      -v
       --address-search
       --cookie bitcoin:$RPCPASSWORD
       --network signet
